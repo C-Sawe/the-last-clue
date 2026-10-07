@@ -50,9 +50,17 @@ issue() {
     sudheysi) user="${GH_SUDHEYSI:-}" ;;
     latiffa)  user="${GH_LATIFFA:-}" ;;
   esac
-  local args=(--repo "$REPO" --title "$title" --body "$body" --milestone "$ms" --label "owner:$who,$labels")
-  [[ -n "$user" ]] && args+=(--assignee "$user")
-  gh issue create "${args[@]}" >/dev/null
+  # Skip if an issue with this exact title already exists (safe to re-run).
+  if gh api "repos/$REPO/issues?state=all&per_page=100" --paginate --jq '.[].title' | grep -Fxq "$title"; then
+    echo "  = [$who] $title (exists)"; return
+  fi
+  local ms_num
+  ms_num=$(gh api "repos/$REPO/milestones?state=all&per_page=100" --jq ".[] | select(.title==\"$ms\") | .number")
+  local args=(-f title="$title" -f body="$body" -F milestone="$ms_num" -f "labels[]=owner:$who")
+  IFS=',' read -ra extra <<< "$labels"
+  for l in "${extra[@]}"; do args+=(-f "labels[]=$l"); done
+  [[ -n "$user" ]] && args+=(-f "assignees[]=$user")
+  gh api "repos/$REPO/issues" "${args[@]}" >/dev/null   # REST only (no GraphQL)
   echo "  + [$who] $title"
 }
 
