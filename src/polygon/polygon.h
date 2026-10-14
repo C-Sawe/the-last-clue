@@ -11,6 +11,8 @@ struct Polygon {
 };
 
 Polygon makeRect(double x, double y, double w, double h);
+Polygon makeRegularPolygon(PointF centre, double radius, int sides, double startAngle = 0.0);
+Polygon makeStar(PointF centre, double outerR, double innerR, int points);  // concave test shape
 void    drawPolygonOutline(Canvas& c, const Polygon& poly, Color col);  // uses Bresenham
 
 // ---- Filling (Alvin) ----
