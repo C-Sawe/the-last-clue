@@ -19,6 +19,12 @@ void Canvas::clear(Color c) {
     for (auto& p : pixels_) p = c;
 }
 
+void Canvas::blit(const Canvas& src, int dx, int dy) {
+    for (int y = 0; y < src.height(); ++y)
+        for (int x = 0; x < src.width(); ++x)
+            setPixel(dx + x, dy + y, src.getPixel(x, y));
+}
+
 namespace {
 void put16(std::ofstream& f, uint16_t v) {
     f.put(static_cast<char>(v & 0xFF));

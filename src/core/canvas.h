@@ -50,6 +50,9 @@ public:
 
     void clear(Color c);
 
+    // Copy another canvas onto this one with its top-left corner at (dx, dy).
+    void blit(const Canvas& src, int dx, int dy);
+
     // Writes a 24-bit uncompressed BMP (opens natively on Windows/macOS/Linux).
     bool saveBMP(const std::string& path) const;
 
