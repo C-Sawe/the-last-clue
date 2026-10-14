@@ -6,3 +6,4 @@ cmake-build-*/
 *.o
 *.obj
 .DS_Store
+output/*.bmp

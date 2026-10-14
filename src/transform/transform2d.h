@@ -16,5 +16,7 @@ Mat3 rotate(double radians);                       // x' = x cosθ - y sinθ, y'
 Mat3 rotateAbout(double radians, PointF pivot);    // T(p) * R * T(-p)
 Mat3 scaleAbout(double sx, double sy, PointF pivot);
 
+Mat3 inverse(const Mat3& m);                       // undo a transform (used to map pixels back)
+
 PointF  apply(const Mat3& m, PointF p);
 Polygon apply(const Mat3& m, const Polygon& poly);
