@@ -43,6 +43,26 @@ Mat3 scaleAbout(double sx, double sy, PointF p) {
     return translate(p.x, p.y) * scale(sx, sy) * translate(-p.x, -p.y);
 }
 
+// ---- CP2: shear and reflection ----------------------------------------------
+// Shear slides each point parallel to an axis by an amount proportional to the
+// other coordinate. A door "swinging" towards the viewer is faked with a shear.
+Mat3 shear(double shx, double shy) {
+    return Mat3{{{1, shx, 0}, {shy, 1, 0}, {0, 0, 1}}};
+}
+
+Mat3 shearAbout(double shx, double shy, PointF p) {
+    return translate(p.x, p.y) * shear(shx, shy) * translate(-p.x, -p.y);
+}
+
+Mat3 reflectX() { return scale(1, -1); }   // a reflection is a scale by -1 on one axis
+Mat3 reflectY() { return scale(-1, 1); }
+
+// Reflect in the line through p with direction angle t:
+// move p to the origin, rotate the line onto the x-axis, mirror, undo.
+Mat3 reflectAbout(PointF p, double t) {
+    return translate(p.x, p.y) * rotate(t) * reflectX() * rotate(-t) * translate(-p.x, -p.y);
+}
+
 Mat3 inverse(const Mat3& a) {
     const auto& m = a.m;
     const double det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
