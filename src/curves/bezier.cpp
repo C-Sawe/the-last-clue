@@ -39,6 +39,20 @@ void drawBezier(Canvas& c, const std::vector<PointF>& control, Color col, int se
     }
 }
 
+// CP2: same sampling as drawBezier, but stop at tEnd. Animating tEnd from 0 to 1
+// makes the string look like it is being pulled from one pin to the other.
+void drawBezierPartial(Canvas& c, const std::vector<PointF>& control, Color col, double tEnd, int segments) {
+    if (control.size() < 2 || segments < 1 || tEnd <= 0) return;
+    tEnd = std::min(tEnd, 1.0);
+    const int steps = std::max(1, static_cast<int>(std::ceil(segments * tEnd)));
+    Point prev = toPixel(bezierPoint(control, 0.0));
+    for (int i = 1; i <= steps; ++i) {
+        const Point cur = toPixel(bezierPoint(control, tEnd * i / steps));
+        drawLineBresenham(c, prev, cur, col);
+        prev = cur;
+    }
+}
+
 void drawControlPolygon(Canvas& c, const std::vector<PointF>& control, Color col) {
     for (size_t i = 0; i + 1 < control.size(); ++i) {
         // dashed control polygon: draw only every other 6-pixel chunk
