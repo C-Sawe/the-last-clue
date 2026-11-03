@@ -7,3 +7,4 @@ cmake-build-*/
 *.obj
 .DS_Store
 output/*.bmp
+output/*.gif

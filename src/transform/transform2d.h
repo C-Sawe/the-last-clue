@@ -16,6 +16,13 @@ Mat3 rotate(double radians);                       // x' = x cosθ - y sinθ, y'
 Mat3 rotateAbout(double radians, PointF pivot);    // T(p) * R * T(-p)
 Mat3 scaleAbout(double sx, double sy, PointF pivot);
 
+// CP2 additions
+Mat3 shear(double shx, double shy);                // x' = x + shx*y,      y' = y + shy*x
+Mat3 shearAbout(double shx, double shy, PointF pivot);
+Mat3 reflectX();                                   // mirror in the x-axis:  y' = -y
+Mat3 reflectY();                                   // mirror in the y-axis:  x' = -x
+Mat3 reflectAbout(PointF p, double lineAngle);     // mirror in any line through p at angle
+
 Mat3 inverse(const Mat3& m);                       // undo a transform (used to map pixels back)
 
 PointF  apply(const Mat3& m, PointF p);
