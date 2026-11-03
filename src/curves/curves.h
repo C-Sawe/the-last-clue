@@ -7,6 +7,8 @@
 // Evaluate a Bézier curve of any degree at t in [0,1] using de Casteljau.
 PointF bezierPoint(const std::vector<PointF>& control, double t);
 void   drawBezier(Canvas& c, const std::vector<PointF>& control, Color col, int segments = 64);
+// CP2: draw only the part of the curve for t in [0, tEnd] - used to animate a string being pulled.
+void   drawBezierPartial(Canvas& c, const std::vector<PointF>& control, Color col, double tEnd, int segments = 64);
 
 // Catmull-Rom spline passing through every point in `pts`.
 void drawCatmullRom(Canvas& c, const std::vector<PointF>& pts, Color col, int segmentsPerSpan = 24);
