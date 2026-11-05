@@ -8,6 +8,7 @@
 #include "../polygon/polygon.h"
 #include "../primitives/primitives.h"
 #include "../transform/transform2d.h"
+#include "scene_anim.h"
 #include "scenes.h"
 
 namespace {
@@ -83,33 +84,65 @@ void clock(Canvas& c) {
     fillCircle(c, ctr, 3, Palette::Red);
 }
 
-void door(Canvas& c) {
+// CP2: `open` (0..1) swings the door leaf into the room about its left hinge.
+// The leaf is narrowed with scaleAbout(hinge) and skewed with shearAbout(hinge),
+// which fakes perspective (the free edge comes towards the viewer). Behind it
+// the dark hallway is revealed. open = 0 gives exactly the CP1 door.
+void door(Canvas& c, double open = 0) {
     rect(c, 630, 110, 112, 222, Color{60, 40, 25}, Palette::Black);    // frame
-    rect(c, 640, 120, 92, 212, Color{96, 62, 36}, Palette::Black);     // door leaf
-    drawPolygonOutline(c, makeRect(652, 135, 68, 70), Color{70, 45, 26});
-    drawPolygonOutline(c, makeRect(652, 225, 68, 90), Color{70, 45, 26});
-    fillCircle(c, {720, 230}, 6, Color{200, 170, 70});
-    highlight(c, 711, 221, 18, 18);
+    const PointF hinge{640, 226};
+    if (open > 0) {                                                     // hallway behind the door
+        fillOnly(c, 640, 120, 92, 212, Color{24, 22, 30});
+        scanlineFill(c, Polygon{{{652, 290}, {720, 290}, {732, 332}, {640, 332}}}, Color{58, 44, 34});
+        fillOnly(c, 678, 150, 16, 70, Color{230, 210, 140});           // distant lit window
+    }
+    const Mat3 M = shearAbout(0, 0.32 * open, hinge) * scaleAbout(1 - 0.78 * open, 1, hinge);
+    const Polygon leaf = apply(M, makeRect(640, 120, 92, 212));
+    scanlineFill(c, leaf, Color{96, 62, 36});                           // door leaf
+    drawPolygonOutline(c, leaf, Palette::Black);
+    drawPolygonOutline(c, apply(M, makeRect(652, 135, 68, 70)), Color{70, 45, 26});
+    drawPolygonOutline(c, apply(M, makeRect(652, 225, 68, 90)), Color{70, 45, 26});
+    const PointF knob = apply(M, PointF{720, 230});
+    fillCircle(c, {static_cast<int>(std::lround(knob.x)), static_cast<int>(std::lround(knob.y))}, 6, Color{200, 170, 70});
+    if (open == 0) highlight(c, 711, 221, 18, 18);
 }
 
-void cabinet(Canvas& c) {
+// A drawer pulled towards the viewer: the dark inside appears, and the front
+// moves down a little and grows slightly (closer = bigger) — translate + scale.
+void drawerFront(Canvas& c, double x, double y, double w, double h, double open,
+                 Color front, Color edge, Color inside) {
+    if (open > 0) {
+        fillOnly(c, x, y, w, h, inside);                                    // the opening
+        scanlineFill(c, makeRect(x + 4, y + 3, w - 8, 10 * open), Color{235, 225, 195});  // papers inside
+    }
+    const PointF centre{x + w / 2, y + h / 2};
+    const Mat3 M = translate(0, 14 * open) * scaleAbout(1 + 0.1 * open, 1 + 0.1 * open, centre);
+    const Polygon f = apply(M, makeRect(x, y, w, h));
+    scanlineFill(c, f, front);
+    drawPolygonOutline(c, f, edge);
+}
+
+void cabinet(Canvas& c, double open = 0) {
     rect(c, 535, 175, 80, 157, Color{88, 98, 86}, Palette::Black);
-    for (int i = 0; i < 3; ++i) {
-        const double y = 185 + i * 48;
-        rect(c, 543, y, 64, 40, Color{104, 116, 102}, Color{60, 66, 58});
-        drawThickLine(c, {565, static_cast<int>(y) + 20}, {585, static_cast<int>(y) + 20}, 3, Color{200, 190, 150});
+    for (int i = 2; i >= 0; --i) {                                          // bottom up, so an open
+        const double y = 185 + i * 48;                                      // top drawer overlaps
+        const double o = (i == 0) ? open : 0;
+        drawerFront(c, 543, y, 64, 40, o, Color{104, 116, 102}, Color{60, 66, 58}, Color{40, 44, 40});
+        const int dy = static_cast<int>(std::lround(14 * o));
+        drawThickLine(c, {565, static_cast<int>(y) + 20 + dy}, {585, static_cast<int>(y) + 20 + dy}, 3, Color{200, 190, 150});
     }
 }
 
-void desk(Canvas& c) {
+void desk(Canvas& c, double open = 0) {
     const Polygon top{{{265, 248}, {525, 248}, {532, 262}, {258, 262}}};
     scanlineFill(c, top, Color{128, 84, 48});
     drawPolygonOutline(c, top, Palette::Black);
     rect(c, 268, 262, 14, 80, Color{100, 64, 36}, Palette::Black);      // legs
     rect(c, 508, 262, 14, 80, Color{100, 64, 36}, Palette::Black);
-    rect(c, 400, 262, 108, 38, Color{112, 72, 40}, Palette::Black);     // drawer
-    fillCircle(c, {454, 281}, 4, Color{200, 170, 70});
-    highlight(c, 400, 262, 108, 38);
+    drawerFront(c, 400, 262, 108, 38, open, Color{112, 72, 40}, Palette::Black, Color{40, 26, 16});   // drawer
+    const int dy = static_cast<int>(std::lround(14 * open));
+    fillCircle(c, {454, 281 + dy}, 4, Color{200, 170, 70});
+    if (open == 0) highlight(c, 400, 262, 108, 38);
 
     // Lamp: ellipse base, pole, trapezoid shade, glow
     fillEllipse(c, {300, 246}, 18, 4, Color{50, 50, 50});
@@ -169,16 +202,19 @@ void marker(Canvas& c, double x, double y, const char* label) {
 }
 }  // namespace
 
-void renderCrimeScene(Canvas& c) {
+void renderCrimeScene(Canvas& c) { renderCrimeSceneState(c, SceneState{}); }
+
+// CP2 (issue #34): the same scene with doors/drawers partly open.
+void renderCrimeSceneState(Canvas& c, const SceneState& st) {
     wall(c);
     floor(c);
     window(c);
     painting(c);
     clock(c);
-    door(c);
-    cabinet(c);
+    door(c, st.door);
+    cabinet(c, st.cabinetDrawer);
     rug(c);
-    desk(c);
+    desk(c, st.deskDrawer);
     safe(c);
     chalkOutline(c);
     marker(c, 520, 470, "1");
