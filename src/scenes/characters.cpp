@@ -5,6 +5,7 @@
 //   eyes, buttons, hands -> midpoint circles
 //   outlines, tie, mouth -> Bresenham lines
 // Each suspect has a signature colour (SuspectColour) used everywhere in the game.
+#include <algorithm>
 #include <cmath>
 #include <string>
 
@@ -12,6 +13,7 @@
 #include "../polygon/polygon.h"
 #include "../primitives/primitives.h"
 #include "../transform/transform2d.h"
+#include "scene_anim.h"
 #include "scenes.h"
 
 namespace {
@@ -30,35 +32,58 @@ void poly(Canvas& c, const Polygon& p, Color fill) {
     drawPolygonOutline(c, p, Outline);
 }
 
+// Walk path: enter from the left, cross the room, stop near the chalk outline.
+double walkX(double t) {
+    const double u = t < 0 ? 0 : (t > 1 ? 1 : t);
+    return -40 + u * 560;
+}
+
 struct Look {
     Color coat, trousers, skin, hair;
     bool hat = false, dress = false, longHair = false, glasses = false, tie = false, magnifier = false;
 };
 
+// CP2: a pose swings the legs about the hips and the arms about the shoulders.
+// The default pose (all zero) draws exactly the CP1 character.
+// We see the character from the front, so a step is shown as one leg kicking
+// outwards while the other stays planted: swing > 0 lifts the left leg, < 0 the
+// right one. Arms do the opposite, as when people really walk.
+struct Pose {
+    double legSwing = 0;   // radians
+    double armSwing = 0;   // radians
+};
+
 // cx = horizontal centre of the character, feet rest on y = 400
-void drawCharacter(Canvas& c, int cx, const Look& L) {
+void drawCharacter(Canvas& c, int cx, const Look& L, const Pose& pose = Pose{}) {
     const double x = cx;
 
-    // Legs + shoes
+    // Legs + shoes. Each leg polygon is rotated about its hip joint (hierarchical
+    // transform: the shoe position is the leg's foot point, transformed the same way).
+    const PointF lHip{x - 15, 320}, rHip{x + 15, 320};
+    const Mat3 lLeg = rotateAbout(std::max(0.0, pose.legSwing), lHip);
+    const Mat3 rLeg = rotateAbout(-std::max(0.0, -pose.legSwing), rHip);
     if (!L.dress) {
-        poly(c, Polygon{{{x - 26, 320}, {x - 4, 320}, {x - 6, 392}, {x - 24, 392}}}, L.trousers);
-        poly(c, Polygon{{{x + 4, 320}, {x + 26, 320}, {x + 24, 392}, {x + 6, 392}}}, L.trousers);
+        poly(c, apply(lLeg, Polygon{{{x - 26, 320}, {x - 4, 320}, {x - 6, 392}, {x - 24, 392}}}), L.trousers);
+        poly(c, apply(rLeg, Polygon{{{x + 4, 320}, {x + 26, 320}, {x + 24, 392}, {x + 6, 392}}}), L.trousers);
     } else {
-        poly(c, Polygon{{{x - 16, 340}, {x - 6, 340}, {x - 7, 392}, {x - 15, 392}}}, L.skin);
-        poly(c, Polygon{{{x + 6, 340}, {x + 16, 340}, {x + 15, 392}, {x + 7, 392}}}, L.skin);
+        poly(c, apply(lLeg, Polygon{{{x - 16, 340}, {x - 6, 340}, {x - 7, 392}, {x - 15, 392}}}), L.skin);
+        poly(c, apply(rLeg, Polygon{{{x + 6, 340}, {x + 16, 340}, {x + 15, 392}, {x + 7, 392}}}), L.skin);
     }
-    fillEllipse(c, {cx - 17, 396}, 14, 6, Outline);
-    fillEllipse(c, {cx + 17, 396}, 14, 6, Outline);
+    const PointF lShoe = apply(lLeg, PointF{x - 17, 396}), rShoe = apply(rLeg, PointF{x + 17, 396});
+    fillEllipse(c, {static_cast<int>(std::lround(lShoe.x)), static_cast<int>(std::lround(lShoe.y))}, 14, 6, Outline);
+    fillEllipse(c, {static_cast<int>(std::lround(rShoe.x)), static_cast<int>(std::lround(rShoe.y))}, 14, 6, Outline);
 
     // Arms: a rectangle hanging from the shoulder, rotated about the shoulder pivot
     const Polygon armShape = makeRect(-9, 0, 18, 105);
     const PointF lShoulder{x - 40, 212}, rShoulder{x + 40, 212};
-    const Polygon lArm = apply(translate(lShoulder.x, lShoulder.y) * rotate(0.22), armShape);
-    const Polygon rArm = apply(translate(rShoulder.x, rShoulder.y) * rotate(L.magnifier ? -2.6 : -0.22), armShape);
+    const double lAngle = 0.22 + std::max(0.0, -pose.armSwing);
+    const double rAngle = L.magnifier ? -2.6 : -0.22 - std::max(0.0, pose.armSwing);
+    const Polygon lArm = apply(translate(lShoulder.x, lShoulder.y) * rotate(lAngle), armShape);
+    const Polygon rArm = apply(translate(rShoulder.x, rShoulder.y) * rotate(rAngle), armShape);
     poly(c, lArm, darker(L.coat, 20));
     poly(c, rArm, darker(L.coat, 20));
-    const PointF lHand = apply(translate(lShoulder.x, lShoulder.y) * rotate(0.22), PointF{0, 110});
-    const PointF rHand = apply(translate(rShoulder.x, rShoulder.y) * rotate(L.magnifier ? -2.6 : -0.22), PointF{0, 110});
+    const PointF lHand = apply(translate(lShoulder.x, lShoulder.y) * rotate(lAngle), PointF{0, 110});
+    const PointF rHand = apply(translate(rShoulder.x, rShoulder.y) * rotate(rAngle), PointF{0, 110});
     fillCircle(c, {static_cast<int>(lHand.x), static_cast<int>(lHand.y)}, 9, L.skin);
     fillCircle(c, {static_cast<int>(rHand.x), static_cast<int>(rHand.y)}, 9, L.skin);
 
@@ -143,4 +168,46 @@ void renderCharacterLineup(Canvas& c) {
     nameplate(c, 340, "SUSPECT 1", "THE BUTLER", SuspectColour::Butler);
     nameplate(c, 560, "SUSPECT 2", "THE HEIRESS", SuspectColour::Heiress);
     nameplate(c, 780, "SUSPECT 3", "THE PARTNER", SuspectColour::Partner);
+}
+
+// ---------------------------------------------------------------------------
+// CP2 (issue #33): detective walk cycle across the crime scene.
+//
+// 1. The detective is drawn at full size onto a separate "sprite" canvas whose
+//    background is a key colour (magenta = transparent).
+// 2. Pose: legs swing about the hips and arms about the shoulders with
+//    sin(phase) — a hierarchical transform (body -> limb -> shoe/hand).
+// 3. The sprite is placed into the room with ONE matrix
+//        M = translate(feetPos) * scale(0.42) * translate(-spriteFeet)
+//    and drawn by mapping each room pixel back with inverse(M) (no holes).
+//    A small vertical bob (|sin|) makes the step feel weighted.
+// ---------------------------------------------------------------------------
+void renderWalkFrame(Canvas& c, double t) {
+    const double PI = 3.14159265358979;
+    renderCrimeScene(c);
+
+    const Color key{255, 0, 255};
+    Canvas sprite(240, 420, key);
+    Look det{SuspectColour::Detective, Color{70, 60, 50}, Skin1, Color{60, 40, 20}};
+    det.hat = true;
+    const double cycle = t * 4 * 2 * PI;                       // 4 full strides
+    Pose pose;
+    pose.legSwing = 0.38 * std::sin(cycle);
+    pose.armSwing = 0.30 * std::sin(cycle);
+    drawCharacter(sprite, 120, det, pose);
+
+    const double s = 0.42;
+    const PointF feet{walkX(t), 462 - 6 * std::fabs(std::sin(cycle))};
+    const Mat3 M = translate(feet.x, feet.y) * scale(s, s) * translate(-120, -402);
+    const Mat3 back = inverse(M);
+
+    fillEllipse(c, {static_cast<int>(feet.x), 466}, 30, 6, Color{70, 46, 27});   // shadow on the floor
+    const int x0 = static_cast<int>(feet.x - 120 * s) - 2, x1 = static_cast<int>(feet.x + 120 * s) + 2;
+    const int y0 = static_cast<int>(feet.y - 402 * s) - 2, y1 = static_cast<int>(feet.y + 18 * s) + 2;
+    for (int y = y0; y <= y1; ++y)
+        for (int x = x0; x <= x1; ++x) {
+            const PointF src = apply(back, PointF{x + 0.5, y + 0.5});
+            const Color col = sprite.getPixel(static_cast<int>(src.x), static_cast<int>(src.y));
+            if (sprite.inBounds(static_cast<int>(src.x), static_cast<int>(src.y)) && col != key) c.setPixel(x, y, col);
+        }
 }
