@@ -15,7 +15,9 @@
 #include "../core/font.h"
 #include "../polygon/polygon.h"
 #include "../primitives/primitives.h"
+#include "../animation/animation.h"
 #include "../transform/transform2d.h"
+#include "puzzle_anim.h"
 #include "scenes.h"
 
 namespace {
@@ -81,7 +83,14 @@ void drawPiece(Canvas& c, const Canvas& letter, const Polygon& piece, const Mat3
 }
 }  // namespace
 
-void renderTornDocument(Canvas& c, bool solved) {
+void renderTornDocument(Canvas& c, bool solved) { renderTornDocumentAt(c, solved ? 1.0 : 0.0); }
+
+// CP2 (issue #36): pieces fly back into place.
+// Each piece has a scattered pose (angle a, offset d) and a solved pose (angle 0,
+// a 2 px gap g). For local progress u (eased, staggered per piece):
+//     M(u) = translate(lerp(d, g, u)) * rotateAbout(lerp(a, 0, u), centre) * translate(origin)
+// u = 0 is exactly the CP1 puzzle, u = 1 exactly the CP1 solution.
+void renderTornDocumentAt(Canvas& c, double progress) {
     c.clear(Color{112, 74, 44});                                         // desk
     for (int y = 0; y < c.height(); y += 36) drawLineBresenham(c, {0, y}, {c.width() - 1, y}, Color{96, 62, 36});
 
@@ -93,20 +102,29 @@ void renderTornDocument(Canvas& c, bool solved) {
     struct Pose { double angle, dx, dy; };
     const Pose scattered[] = {{-0.35, -125, -45}, {0.5, 108, -38}, {0.25, -135, 30}, {-0.6, 108, 22}};
     for (size_t i = 0; i < parts.size(); ++i) {
-        Mat3 M = translate(ox, oy);
-        if (solved) {
-            // tiny gaps along the tears so the pieces read as separate paper
-            const double gx = (i % 2 == 0) ? -2 : 2, gy = (i < 2) ? -2 : 2;
-            M = translate(gx, gy) * M;
-        } else {
-            PointF centre{0, 0};
-            for (const auto& v : parts[i].vertices) { centre.x += v.x; centre.y += v.y; }
-            centre = {centre.x / parts[i].vertices.size() + ox, centre.y / parts[i].vertices.size() + oy};
-            M = translate(scattered[i].dx, scattered[i].dy) * rotateAbout(scattered[i].angle, centre) * M;
-        }
+        const double start = 0.18 * i, end = start + 0.46;               // staggered
+        const double raw = anim::phase(progress, start, end);
+        const double u = (raw >= 1) ? 1.0 : anim::ease(anim::Ease::InOutCubic, raw);
+
+        PointF centre{0, 0};
+        for (const auto& v : parts[i].vertices) { centre.x += v.x; centre.y += v.y; }
+        centre = {centre.x / parts[i].vertices.size() + ox, centre.y / parts[i].vertices.size() + oy};
+
+        // tiny gaps along the tears so the solved pieces read as separate paper
+        const double gx = (i % 2 == 0) ? -2 : 2, gy = (i < 2) ? -2 : 2;
+        Mat3 M;
+        if (u <= 0)      M = translate(scattered[i].dx, scattered[i].dy) * rotateAbout(scattered[i].angle, centre) * translate(ox, oy);
+        else if (u >= 1) M = translate(gx, gy) * translate(ox, oy);
+        else M = translate(anim::lerp(scattered[i].dx, gx, u), anim::lerp(scattered[i].dy, gy, u)) *
+                 rotateAbout(anim::lerp(scattered[i].angle, 0, u), centre) * translate(ox, oy);
         drawPiece(c, letter, parts[i], M);
+
+        // "Snap" feedback: a green outline flashes for a moment when a piece lands
+        const double snap = anim::phase(progress, end, end + 0.08);
+        if (snap > 0 && snap < 1) drawPolygonOutline(c, apply(M, parts[i]), Color{90, 220, 110});
     }
 
-    const std::string status = solved ? "SOLVED - LETTER RESTORED" : "PUZZLE - 4 TORN PIECES";
+    const bool solved = progress >= 1;
+    const std::string status = solved ? "SOLVED - LETTER RESTORED" : (progress <= 0 ? "PUZZLE - 4 TORN PIECES" : "RECONSTRUCTING...");
     drawText(c, 16, c.height() - 26, status, solved ? Color{140, 230, 140} : Palette::Yellow, 2);
 }
