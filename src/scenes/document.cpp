@@ -9,6 +9,7 @@
 //    Mapping backwards (destination -> source) guarantees no holes appear.
 // The scattered state is the puzzle; the solved state is where the player
 // must move and rotate the pieces back to.
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -127,4 +128,60 @@ void renderTornDocumentAt(Canvas& c, double progress) {
     const bool solved = progress >= 1;
     const std::string status = solved ? "SOLVED - LETTER RESTORED" : (progress <= 0 ? "PUZZLE - 4 TORN PIECES" : "RECONSTRUCTING...");
     drawText(c, 16, c.height() - 26, status, solved ? Color{140, 230, 140} : Palette::Yellow, 2);
+}
+
+// ---------------------------------------------------------------------------
+// CP3 (issue #43): the same pieces, driven by the player instead of a timeline.
+// ---------------------------------------------------------------------------
+int tornPieceCount() { return static_cast<int>(pieces().size()); }
+
+Polygon tornPiece(int i) { return pieces()[static_cast<size_t>(i)]; }
+
+PointF tornPieceCentre(int i) {
+    const Polygon p = tornPiece(i);
+    PointF c{0, 0};
+    for (const auto& v : p.vertices) { c.x += v.x; c.y += v.y; }
+    return {c.x / p.vertices.size(), c.y / p.vertices.size()};
+}
+
+PointF tornLetterOrigin(int canvasW, int canvasH) { return {(canvasW - W) / 2.0, (canvasH - H) / 2.0 + 10}; }
+
+TornPose tornSolvedPose(int i) { return {0, (i % 2 == 0) ? -2.0 : 2.0, (i < 2) ? -2.0 : 2.0}; }
+
+Mat3 tornPoseMatrix(int i, const TornPose& pose, int canvasW, int canvasH) {
+    const PointF o = tornLetterOrigin(canvasW, canvasH);
+    return translate(o.x + pose.dx, o.y + pose.dy) * rotateAbout(pose.angle, tornPieceCentre(i));
+}
+
+void renderTornPieces(Canvas& c, const std::vector<TornPose>& poses, const std::vector<int>& drawOrder,
+                      const std::vector<bool>& locked, int highlight) {
+    c.clear(Color{112, 74, 44});                                         // desk
+    for (int y = 0; y < c.height(); y += 36) drawLineBresenham(c, {0, y}, {c.width() - 1, y}, Color{96, 62, 36});
+
+    // Dashed outline where the letter belongs
+    const PointF o = tornLetterOrigin(c.width(), c.height());
+    const Polygon target = makeRect(o.x - 4, o.y - 4, W + 8, H + 8);
+    for (size_t e = 0; e < 4; ++e) {
+        const PointF a = target.vertices[e], b = target.vertices[(e + 1) % 4];
+        const double len = std::hypot(b.x - a.x, b.y - a.y);
+        for (double s = 0; s < len; s += 16) {
+            const double t0 = s / len, t1 = std::min(len, s + 8) / len;
+            drawLineBresenham(c, {static_cast<int>(a.x + (b.x - a.x) * t0), static_cast<int>(a.y + (b.y - a.y) * t0)},
+                                 {static_cast<int>(a.x + (b.x - a.x) * t1), static_cast<int>(a.y + (b.y - a.y) * t1)},
+                              Color{200, 170, 120});
+        }
+    }
+
+    const Canvas letter = makeLetter();
+    const auto parts = pieces();
+    for (int i : drawOrder) {
+        const Mat3 M = tornPoseMatrix(i, poses[static_cast<size_t>(i)], c.width(), c.height());
+        drawPiece(c, letter, parts[static_cast<size_t>(i)], M);
+        if (locked[static_cast<size_t>(i)]) drawPolygonOutline(c, apply(M, parts[static_cast<size_t>(i)]), Color{90, 200, 110});
+        if (i == highlight) {
+            const Polygon outline = apply(M, parts[static_cast<size_t>(i)]);
+            drawPolygonOutline(c, outline, SuspectColour::Highlight);
+            drawPolygonOutline(c, apply(translate(1, 1), outline), SuspectColour::Highlight);
+        }
+    }
 }
