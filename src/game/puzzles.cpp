@@ -7,6 +7,8 @@
 #include "animation/animation.h"
 #include "core/font.h"
 #include "primitives/primitives.h"
+#include "scenes/fingerprint.h"
+#include "scenes/scenes.h"
 
 namespace game {
 
@@ -230,4 +232,161 @@ void SafePuzzle::render(Canvas& c) const {
     else drawText(c, 610, 390, doorOpen() ? "KEY + FINGERPRINT FOUND" : "OPENING...", Color{120, 230, 140});
 }
 
+// ============================ Fingerprint matching ============================
+namespace {
+const Color Paper{248, 246, 238}, Ink{50, 50, 70}, LiftedInk{170, 40, 50};
+
+// Ink mask of a print canvas, thickened by one pixel in every direction.
+std::vector<bool> inkMask(const Canvas& c, Color paper) {
+    const int w = c.width(), h = c.height();
+    std::vector<bool> m(static_cast<size_t>(w * h), false);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) {
+            if (c.getPixel(x, y) == paper) continue;
+            for (int dy = -1; dy <= 1; ++dy)
+                for (int dx = -1; dx <= 1; ++dx)
+                    if (x + dx >= 0 && x + dx < w && y + dy >= 0 && y + dy < h) m[static_cast<size_t>((y + dy) * w + x + dx)] = true;
+        }
+    return m;
+}
+}  // namespace
+
+double printMatchScore(int suspect, double angle, int size) {
+    const Canvas lifted = renderPrint(foundPrint(), size, LiftedInk, Paper);
+    Canvas turned(size, size, Paper);
+    drawPrintRotated(turned, lifted, {size / 2.0, size / 2.0}, angle, Paper);
+    const auto a = inkMask(turned, Paper);
+    const auto b = inkMask(renderPrint(suspectPrint(suspect), size, Ink, Paper), Paper);
+    size_t both = 0, either = 0;
+    for (size_t i = 0; i < a.size(); ++i) {
+        both += (a[i] && b[i]);
+        either += (a[i] || b[i]);
+    }
+    return either ? static_cast<double>(both) / static_cast<double>(either) : 0.0;
+}
+
+PrintsPuzzle::PrintsPuzzle() { reset(); }
+
+void PrintsPuzzle::reset() {
+    angle_ = StartAngle;
+    dragging_ = solved_ = false;
+    selected_ = hover_ = -1;
+    message_.clear();
+}
+
+PointF PrintsPuzzle::cardCentre(int suspect) const { return {330 + suspect * 158 + PrintCardW / 2.0, 30 + PrintCardH / 2.0}; }
+
+int PrintsPuzzle::cardAt(PointF p) const {
+    for (int i = 0; i < 3; ++i) {
+        const PointF c = cardCentre(i);
+        if (std::fabs(p.x - c.x) <= PrintCardW / 2.0 && std::fabs(p.y - c.y) <= PrintCardH / 2.0) return i;
+    }
+    return -1;
+}
+
+double PrintsPuzzle::score() const { return selected_ < 0 ? 0.0 : printMatchScore(selected_, angle_); }
+
+void PrintsPuzzle::mouseDown(PointF p) {
+    if (solved_) return;
+    mouse_ = p;
+    if (p.x >= 40 && p.x <= 260 && p.y >= 420 && p.y <= 464) { compare(); return; }          // COMPARE
+    if (const int i = cardAt(p); i >= 0) { selected_ = i; return; }
+    if (inCircle(printCentre(), 115, p)) {                       // grab the lifted print to turn it
+        dragging_ = true;
+        grabAngle_ = angleAt(printCentre(), p);
+        grabStart_ = angle_;
+    }
+}
+
+void PrintsPuzzle::mouseMove(PointF p) {
+    mouse_ = p;
+    hover_ = cardAt(p);
+    if (dragging_) {                                            // follow the mouse, in 5-degree steps
+        const double raw = grabStart_ + angleBetween(grabAngle_, angleAt(printCentre(), p));
+        angle_ = wrapAngle(std::round(raw / (PI / 36)) * (PI / 36));
+    }
+}
+
+void PrintsPuzzle::mouseUp(PointF) { dragging_ = false; }
+
+void PrintsPuzzle::scroll(PointF, double dir) {
+    if (!solved_) angle_ = wrapAngle(angle_ + dir * PI / 12);   // 15 degrees per notch
+}
+
+void PrintsPuzzle::key(input::Key k) {
+    if (solved_) return;
+    if (k == input::Key::Left) angle_ = wrapAngle(angle_ - PI / 36);   // 5 degrees
+    if (k == input::Key::Right || k == input::Key::R) angle_ = wrapAngle(angle_ + PI / 36);
+    if (k == input::Key::Enter) compare();
+}
+
+void PrintsPuzzle::compare() {
+    if (solved_) return;
+    static const char* names[3] = {"THE BUTLER", "THE HEIRESS", "THE PARTNER"};
+    if (selected_ < 0) { message_ = "PICK A SUSPECT'S CARD TO COMPARE WITH"; return; }
+    const double s = score();
+    const std::string pct = std::to_string(static_cast<int>(std::lround(s * 100))) + "%";
+    if (s >= MatchThreshold) {
+        solved_ = true;
+        message_ = std::string("MATCH (") + pct + "): THE PRINT ON THE SAFE IS " + names[selected_] + "'S";
+    } else if (selected_ == 2) {
+        message_ = "ONLY " + pct + " - THE RIDGES DON'T LINE UP. TURN THE PRINT";
+    } else {
+        message_ = std::string("NO MATCH (") + pct + ") WITH " + names[selected_];
+    }
+}
+
+std::string PrintsPuzzle::takeMessage() {
+    std::string m = message_;
+    message_.clear();
+    return m;
+}
+
+void PrintsPuzzle::render(Canvas& c) const {
+    c.clear(Color{36, 38, 48});
+    // Left: the print lifted from the safe, on its card, turned by angle_
+    scanlineFill(c, makeRect(45, 125, 210, 210), Paper);
+    drawPolygonOutline(c, makeRect(45, 125, 210, 210), Color{120, 110, 95});
+    static const Canvas lifted = renderPrint(foundPrint(), 160, LiftedInk, Paper);
+    drawPrintRotated(c, lifted, printCentre(), angle_, Paper);
+    drawCircleMidpoint(c, {150, 230}, 112, dragging_ ? SuspectColour::Highlight : Color{90, 92, 108});   // grab ring
+    drawText(c, 40, 40, "LIFTED FROM THE SAFE", Palette::White, 2);
+    drawText(c, 40, 64, "DRAG AROUND IT, SCROLL, R OR ARROWS TO TURN", Color{180, 182, 194});
+    drawText(c, 40, 80, "THEN PICK A SUSPECT AND COMPARE", Color{180, 182, 194});
+    const int deg = static_cast<int>(std::lround(angle_ * 180 / PI));
+    drawText(c, 40, 360, "TURNED: " + std::to_string(deg) + " DEG", Palette::White, 2);
+
+    // Right: the three suspects' cards
+    for (int i = 0; i < 3; ++i) {
+        const PointF cc = cardCentre(i);
+        drawPrintCard(c, cc.x - PrintCardW / 2.0, cc.y - PrintCardH / 2.0, i, i == selected_, i == hover_);
+    }
+
+    // Overlay: the lifted print (red) laid over the chosen suspect's print (dark)
+    const double ox = 500, oy = 330;
+    scanlineFill(c, makeRect(ox - 90, oy - 90, 180, 180), Paper);
+    drawPolygonOutline(c, makeRect(ox - 90, oy - 90, 180, 180), Color{120, 110, 95});
+    if (selected_ >= 0) {
+        static const Canvas suspects[3] = {renderPrint(suspectPrint(0), 160, Ink, Paper), renderPrint(suspectPrint(1), 160, Ink, Paper),
+                                           renderPrint(suspectPrint(2), 160, Ink, Paper)};
+        c.blit(suspects[selected_], static_cast<int>(ox - 80), static_cast<int>(oy - 80));
+        drawPrintRotated(c, lifted, {ox, oy}, angle_, Paper);
+        const double s = score();
+        const Color col = s >= MatchThreshold ? Feedback::Correct : Feedback::Wrong;
+        drawText(c, 610, 270, "OVERLAP (IOU)", Palette::White, 2);
+        drawText(c, 610, 296, std::to_string(static_cast<int>(std::lround(s * 100))) + "%", col, 4);
+        scanlineFill(c, makeRect(610, 340, 160, 14), Color{20, 20, 26});                     // score bar
+        if (s > 0) scanlineFill(c, makeRect(610, 340, 160 * std::min(1.0, s), 14), col);
+        const double tx = 610 + 160 * MatchThreshold;
+        drawLineBresenham(c, {static_cast<int>(tx), 336}, {static_cast<int>(tx), 357}, Palette::White);   // pass mark
+    } else {
+        drawText(c, static_cast<int>(ox) - textWidth("PICK A CARD") / 2, static_cast<int>(oy) - 3, "PICK A CARD", Palette::Grey);
+    }
+    drawText(c, static_cast<int>(ox) - textWidth("OVERLAY") / 2, static_cast<int>(oy) + 96, "OVERLAY", Color{180, 182, 194});
+
+    if (!solved_) button(c, 40, 420, 220, 44, "COMPARE", Color{60, 110, 180});
+    else drawText(c, 40, 436, "PRINT MATCHED", Feedback::Correct, 2);
+}
+
 }  // namespace game
+
