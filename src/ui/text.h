@@ -33,6 +33,8 @@ struct Button {
 void drawButton(Canvas& c, const Button& b, bool enabled, bool hovered, Color base);
 
 // Message bar across the bottom of a canvas region.
-void toastBar(Canvas& c, double x, double y, double w, const std::string& message);
+// Final build (issue #52): `shown` (0..1) slides the bar up into place and back
+// down again, so messages never just pop in or out.
+void toastBar(Canvas& c, double x, double y, double w, const std::string& message, double shown = 1);
 
 }  // namespace ui

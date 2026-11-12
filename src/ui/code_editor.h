@@ -44,33 +44,58 @@ private:
     void clampCursor();
 };
 
+// Final build (issues #61 #62): the terminal runs ANY code puzzle. It holds
+// one or more "files" (tabs), each a game::CodePuzzle with its own starter
+// code, checker, hint and preview style (a drawing, a drawing over a
+// background such as the wiring board, or printed text). Tabs can start
+// locked and be unlocked by the game (the email only opens once the alarm is
+// off). The victim's laptop and the security panel are both terminals.
 class LaptopScreen {
 public:
-    LaptopScreen();
-    void reset();
-
+    LaptopScreen();                                // the victim's laptop (ALARM_KEY.CLUE + MAIL.CLUE)
+    LaptopScreen(std::string title, std::vector<game::CodePuzzle> files);
+    void reset();                                  // current file back to its starter code
     void mouseDown(PointF p);
     void mouseMove(PointF p) { mouse_ = p; }
     void key(input::Key k);
     void type(unsigned codepoint);
     void update(double dt) { time_ += dt; }
-
     void render(Canvas& c) const;                  // 800 x 500
-    void run();                                    // RUN button / F5-style action
-    bool solved() const { return solved_; }
+    void run();                                    // RUN button / F1
+
+    // Files (tabs)
+    int fileCount() const { return static_cast<int>(files_.size()); }
+    int current() const { return current_; }
+    void open(int file);                           // switch tab (ignored if locked)
+    void setLocked(int file, bool locked, const std::string& why = "");
+    bool locked(int file) const { return files_[static_cast<size_t>(file)].locked; }
+    bool solved(int file) const { return files_[static_cast<size_t>(file)].solved; }
+    bool solved() const { return solved(0); }      // CP3: the first file
+
     std::string takeMessage();
     CodeEditor& editor() { return editor_; }
 
 private:
+    struct File {
+        game::CodePuzzle puzzle;
+        std::string text;                          // the code while another tab is open
+        script::RunResult last;
+        game::CodeCheck check;
+        bool hasRun = false, solved = false, locked = false;
+        int failures = 0;
+        std::string lockedWhy;
+    };
+    std::string title_;
+    std::vector<File> files_;
+    int current_ = 0;
     CodeEditor editor_;
-    script::RunResult last_;
-    game::CodeCheck check_;
-    bool hasRun_ = false, solved_ = false;
-    int failures_ = 0;
     double time_ = 0;
     PointF mouse_{0, 0};
     std::string message_;
     Button runBtn_, resetBtn_;
+    Button tab(int i) const;
+    File& cur() { return files_[static_cast<size_t>(current_)]; }
+    const File& cur() const { return files_[static_cast<size_t>(current_)]; }
 };
 
 }  // namespace ui

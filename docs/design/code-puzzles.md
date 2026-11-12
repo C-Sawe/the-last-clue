@@ -1,6 +1,6 @@
 # Design: Code puzzles (writing code to open locked areas)
 
-**Status:** planned. This is a design only, with no code yet. Implementation is in CP3 (interpreter, editor, first puzzle) and the final project (remaining puzzles). See the issues labelled [`code-puzzle`](https://github.com/C-Sawe/the-last-clue/issues?q=label%3Acode-puzzle).
+**Status:** implemented. CP3 delivered the interpreter, the editor and puzzle B (the safe's alarm); the final project added puzzles A (wiring) and C (encrypted email). Two details changed from this plan: the safe puzzle passes at IoU ≥ 85%, and the wiring is written with `color` + `line` commands (the `wire` helper was not needed). See the issues labelled [`code-puzzle`](https://github.com/C-Sawe/the-last-clue/issues?q=label%3Acode-puzzle).
 
 ## 1. The idea
 

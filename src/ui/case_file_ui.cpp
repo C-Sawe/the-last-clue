@@ -7,6 +7,7 @@
 #include "core/font.h"
 #include "curves/curves.h"
 #include "polygon/polygon.h"
+#include "animation/animation.h"
 #include "primitives/primitives.h"
 #include "scenes/scenes.h"
 
@@ -42,19 +43,57 @@ void evidenceIcon(Canvas& c, game::Evidence e, int x, int y, int s, Color ink) {
         case game::Evidence::Fingerprint:
             for (int k = 0; k < 5; ++k) drawEllipseMidpoint(c, {x + s / 2, y + s / 2}, 2 + k * s / 14, 3 + k * s / 11, ink);
             break;
+        case game::Evidence::Email: {                                   // an envelope: rectangle + flap (two lines)
+            const int l = x + s / 8, r = x + s * 7 / 8, t = y + s / 4, b = y + s * 3 / 4;
+            box(c, l, t, r - l, b - t, Palette::Paper, Palette::Grey);
+            drawLineBresenham(c, {l, t}, {x + s / 2, y + s / 2}, Color{90, 90, 140});
+            drawLineBresenham(c, {r, t}, {x + s / 2, y + s / 2}, Color{90, 90, 140});
+            fillCircle(c, {x + s / 2, y + s / 2}, std::max(2, s / 14), Palette::Red);   // wax seal
+            break;
+        }
+        case game::Evidence::Vial: {                                    // a small bottle: polygon + cork
+            const double cx = x + s / 2.0, t = y + s * 0.15, b = y + s * 0.85, w = s * 0.18;
+            const Polygon bottle{{{cx - w * 0.5, t + s * 0.1}, {cx + w * 0.5, t + s * 0.1}, {cx + w * 0.5, t + s * 0.25},
+                                  {cx + w * 1.4, t + s * 0.4}, {cx + w * 1.4, b}, {cx - w * 1.4, b}, {cx - w * 1.4, t + s * 0.4},
+                                  {cx - w * 0.5, t + s * 0.25}}};
+            scanlineFill(c, bottle, Color{150, 200, 190});
+            scanlineFill(c, makeRect(cx - w * 1.3, b - s * 0.15, w * 2.6, s * 0.14), Color{90, 150, 120});
+            drawPolygonOutline(c, bottle, Color{40, 60, 60});
+            box(c, cx - w * 0.6, t, w * 1.2, s * 0.1, Color{120, 80, 50}, Color{60, 40, 30});
+            break;
+        }
+    }
+}
+
+// Category colour of each piece of evidence (shared palette, scenes.h).
+Color categoryInk(game::Evidence e) {
+    switch (e) {
+        case game::Evidence::Key:
+        case game::Evidence::Vial: return EvidenceInk::Physical;
+        case game::Evidence::Fingerprint: return EvidenceInk::Forensic;
+        default: return EvidenceInk::Document;
     }
 }
 }  // namespace
 
 // =============================== Case File ===============================
 CaseFileUI::CaseFileUI() {
-    board_ = {12, 400, 226, 30, "EVIDENCE BOARD"};
+    board_ = {12, 404, 110, 26, "BOARD"};
+    prints_ = {128, 404, 110, 26, "PRINTS"};
     deduce_ = {12, 436, 226, 30, "MAKE DEDUCTION"};
     back_ = {12, 472, 226, 22, "BACK TO THE STUDY"};
 }
 
+void CaseFileUI::update(double dt, const game::GameState& st) {
+    time_ += dt;
+    if (st.evidence.size() > seen_) { seen_ = st.evidence.size(); popT_ = 0; }
+    if (st.evidence.size() < seen_) seen_ = st.evidence.size();             // new game
+    popT_ = std::min(1.0, popT_ + dt / 0.6);
+}
+
 CaseFileUI::Action CaseFileUI::click(PointF p, const game::GameState& st) const {
     if (board_.contains(p)) return Action::Board;
+    if (prints_.contains(p)) return Action::Prints;
     if (deduce_.contains(p)) return Action::Deduction;
     if (back_.contains(p) && st.screen != game::Screen::Explore) return Action::Back;
     return Action::None;
@@ -72,7 +111,8 @@ void CaseFileUI::render(Canvas& c, const game::GameState& st) const {
     const Row rows[] = {
         {SuspectColour::Butler, "THE BUTLER", st.hasEvidence(game::Evidence::TornLetter) ? "LETTER SIGNED 'R.'?" : "ALIBI: NONE"},
         {SuspectColour::Heiress, "THE HEIRESS", "MOTIVE: THE WILL"},
-        {SuspectColour::Partner, "THE PARTNER", st.hasEvidence(game::Evidence::Fingerprint) ? "PRINT ON THE SAFE?" : "NOT QUESTIONED"},
+        {SuspectColour::Partner, "THE PARTNER", st.has("solved:print") ? "HIS PRINT IS ON THE SAFE!"
+                                                 : st.hasEvidence(game::Evidence::Fingerprint) ? "PRINT ON THE SAFE?" : "NOT QUESTIONED"},
     };
     for (int i = 0; i < 3; ++i) {
         const int y = 80 + i * 44;
@@ -83,31 +123,42 @@ void CaseFileUI::render(Canvas& c, const game::GameState& st) const {
         drawText(c, 52, y + 22, rows[i].note, Dim);
     }
 
-    // Evidence slots: filled from GameState in the order found
+    // Evidence slots: filled from GameState in the order found, 2 columns x 3 rows.
     const std::string count = "EVIDENCE  " + std::to_string(st.evidence.size()) + "/" + std::to_string(game::EvidenceTotal);
-    drawText(c, 14, 220, count, SuspectColour::Highlight);
+    drawText(c, 14, 218, count, SuspectColour::Highlight);
+    const int SW = 110, SH = 54;
     for (int i = 0; i < game::EvidenceTotal; ++i) {
-        const int x = 12 + (i % 2) * 116, y = 234 + (i / 2) * 80;
+        const int x = 12 + (i % 2) * 116, y = 230 + (i / 2) * 58;
         if (i < static_cast<int>(st.evidence.size())) {
-            box(c, x, y, 110, 74, Section, SuspectColour::Highlight);
-            evidenceIcon(c, st.evidence[static_cast<size_t>(i)], x + 27, y + 4, 56, TextCol);
-            const char* name = game::evidenceName(st.evidence[static_cast<size_t>(i)]);
-            drawText(c, x + 55 - textWidth(name) / 2, y + 62, name, TextCol);
+            const game::Evidence e = st.evidence[static_cast<size_t>(i)];
+            const bool newest = i + 1 == static_cast<int>(st.evidence.size()) && popT_ < 1;
+            // The newest slot pops in: scaled about its centre with an overshoot.
+            const double k = newest ? anim::ease(anim::Ease::OutBack, popT_) : 1.0;
+            const double cx = x + SW / 2.0, cy = y + SH / 2.0, w = SW * k, h = SH * k;
+            const Color edge = newest && std::fmod(time_, 0.2) < 0.1 ? Palette::White : categoryInk(e);
+            box(c, cx - w / 2, cy - h / 2, w, h, Section, edge);
+            drawPolygonOutline(c, makeRect(cx - w / 2 + 1, cy - h / 2 + 1, w - 2, h - 2), edge);
+            if (k > 0.9) {
+                evidenceIcon(c, e, x + 35, y + 2, 40, TextCol);
+                const char* name = game::evidenceName(e);
+                drawText(c, x + SW / 2 - textWidth(name) / 2, y + 43, name, TextCol);
+            }
         } else {
-            for (int k = 0; k < 110; k += 10) {                      // dashed empty slot
+            for (int k = 0; k < SW; k += 10) {                       // dashed empty slot
                 drawLineBresenham(c, {x + k, y}, {x + k + 5, y}, Dim);
-                drawLineBresenham(c, {x + k, y + 74}, {x + k + 5, y + 74}, Dim);
+                drawLineBresenham(c, {x + k, y + SH}, {x + k + 5, y + SH}, Dim);
             }
-            for (int k = 0; k < 74; k += 10) {
+            for (int k = 0; k < SH; k += 10) {
                 drawLineBresenham(c, {x, y + k}, {x, y + k + 5}, Dim);
-                drawLineBresenham(c, {x + 110, y + k}, {x + 110, y + k + 5}, Dim);
+                drawLineBresenham(c, {x + SW, y + k}, {x + SW, y + k + 5}, Dim);
             }
-            drawText(c, x + 52, y + 33, "?", Dim);
+            drawText(c, x + SW / 2 - 2, y + SH / 2 - 3, "?", Dim);
         }
     }
 
     std::string why;
     drawButton(c, board_, st.canEnter(game::Screen::Board, &why), board_.contains(mouse_), Color{60, 110, 180});
+    drawButton(c, prints_, st.canEnter(game::Screen::Prints, &why), prints_.contains(mouse_), EvidenceInk::Forensic);
     drawButton(c, deduce_, st.canEnter(game::Screen::Deduction, &why), deduce_.contains(mouse_), Color{150, 70, 60});
     if (st.screen != game::Screen::Explore) drawButton(c, back_, true, back_.contains(mouse_), Color{80, 84, 100});
 }
@@ -118,8 +169,8 @@ BoardUI::BoardUI() {
 }
 
 void BoardUI::sync(const game::GameState& st) {
-    const double spots[][2] = {{60, 330}, {630, 330}, {200, 210}, {500, 210}};
-    for (size_t i = 0; i < st.evidence.size() && i < 4; ++i) {
+    const double spots[][2] = {{60, 330}, {630, 330}, {200, 210}, {500, 210}, {200, 40}, {500, 40}};
+    for (size_t i = 0; i < st.evidence.size() && i < 6; ++i) {
         const int id = 10 + static_cast<int>(st.evidence[i]);
         if (std::none_of(cards_.begin(), cards_.end(), [id](const Card& c) { return c.id == id; }))
             cards_.push_back({id, spots[i][0], spots[i][1], 110, 100});

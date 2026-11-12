@@ -1,6 +1,7 @@
 // Text and widget helpers — Latiffa (CP3, issue #46)
 #include "text.h"
 
+#include <algorithm>
 #include <sstream>
 
 #include "animation/animation.h"
@@ -56,10 +57,11 @@ void drawButton(Canvas& c, const Button& b, bool enabled, bool hovered, Color ba
              static_cast<int>(b.y + b.h / 2) - 7 * scale / 2, b.label, enabled ? Palette::White : Color{150, 150, 160}, scale);
 }
 
-void toastBar(Canvas& c, double x, double y, double w, const std::string& message) {
-    if (message.empty()) return;
+void toastBar(Canvas& c, double x, double y, double w, const std::string& message, double shown) {
+    if (message.empty() || shown <= 0) return;
     const double h = 30;
-    for (int yy = static_cast<int>(y); yy < static_cast<int>(y + h); ++yy)
+    y += (1 - anim::ease(anim::Ease::OutQuad, std::min(1.0, shown))) * h;   // slide up from below the edge
+    for (int yy = static_cast<int>(y); yy < std::min(c.height(), static_cast<int>(y + h)); ++yy)
         for (int xx = static_cast<int>(x); xx < static_cast<int>(x + w); ++xx)
             c.setPixel(xx, yy, anim::lerp(c.getPixel(xx, yy), Color{10, 10, 14}, 0.82));   // dimmed strip
     drawText(c, static_cast<int>(x + w / 2) - textWidth(message, 2) / 2, static_cast<int>(y) + 8, message,
