@@ -12,6 +12,7 @@
 //   }
 //   color red
 //   circle 200 150 40
+//   shift "KHOOR" -3       # Caesar shift, prints HELLO (final build)
 //
 // The program never touches the screen directly: it produces a list of draw
 // commands. renderDrawing() then draws them with OUR algorithms (Bresenham,
