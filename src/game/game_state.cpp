@@ -14,6 +14,9 @@ const char* screenName(Screen s) {
         case Screen::Safe: return "SAFE";
         case Screen::Board: return "EVIDENCE BOARD";
         case Screen::Deduction: return "DEDUCTION";
+        case Screen::Panel: return "SECURITY PANEL";
+        case Screen::Prints: return "FINGERPRINTS";
+        case Screen::Outcome: return "VERDICT";
     }
     return "?";
 }
@@ -24,6 +27,8 @@ const char* evidenceName(Evidence e) {
         case Evidence::SafeCode: return "SAFE CODE";
         case Evidence::Key: return "DOOR KEY";
         case Evidence::Fingerprint: return "FINGERPRINT";
+        case Evidence::Email: return "EMAIL";
+        case Evidence::Vial: return "POISON VIAL";
     }
     return "?";
 }
@@ -41,7 +46,7 @@ bool GameState::addEvidence(Evidence e) {
 
 void GameState::say(const std::string& message, double seconds) {
     toast = message;
-    toastTime = seconds;
+    toastTime = toastLength = seconds;
 }
 
 void GameState::update(double dt) {
@@ -57,6 +62,7 @@ bool GameState::canEnter(Screen s, std::string* whyNot) const {
     switch (s) {
         case Screen::Explore:
         case Screen::Computer:
+        case Screen::Panel:                     // the wiring panel is on the wall, always reachable
             return true;
         case Screen::Letter:
             return has("open:drawer") ? true : no("THE DRAWER IS CLOSED");
@@ -66,10 +72,13 @@ bool GameState::canEnter(Screen s, std::string* whyNot) const {
             return has("solved:code") ? true : no("THE SAFE'S ALARM IS ARMED - DISABLE IT ON THE LAPTOP");
         case Screen::Board:
             return !evidence.empty() ? true : no("NOTHING TO PIN ON THE BOARD YET");
+        case Screen::Prints:
+            return hasEvidence(Evidence::Fingerprint) ? true : no("NO PRINTS TO COMPARE YET");
         case Screen::Deduction:
-            return static_cast<int>(evidence.size()) >= EvidenceTotal
-                       ? true
-                       : no("COLLECT ALL THE EVIDENCE FIRST");
+            if (static_cast<int>(evidence.size()) < EvidenceTotal) return no("COLLECT ALL THE EVIDENCE FIRST");
+            return has("solved:print") ? true : no("MATCH THE FINGERPRINT TO A SUSPECT FIRST");
+        case Screen::Outcome:
+            return has("accused") ? true : no("MAKE YOUR ACCUSATION FIRST");
     }
     return false;
 }
