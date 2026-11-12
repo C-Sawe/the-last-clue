@@ -53,6 +53,10 @@ public:
     // Copy another canvas onto this one with its top-left corner at (dx, dy).
     void blit(const Canvas& src, int dx, int dy);
 
+    // CP3: direct read access to the pixel buffer (row-major, top row first),
+    // used to upload a frame to OpenGL as a texture.
+    const std::vector<Color>& pixels() const { return pixels_; }
+
     // Writes a 24-bit uncompressed BMP (opens natively on Windows/macOS/Linux).
     bool saveBMP(const std::string& path) const;
 
