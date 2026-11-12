@@ -4,28 +4,28 @@ An interactive 2D detective puzzle game built for our Computer Graphics semester
 
 Some locked areas, such as the safe's electronic lock and the security panel by the door, open only when the player **writes or fixes a short program** on the victim's computer. The game has its own tiny language, ClueScript, and an in-game code editor. The player's code **draws using our own algorithms** (Bresenham, midpoint circle and ellipse, rotation), and the game checks the drawing to decide whether the lock opens. This is planned for CP3 and the final project; see [`docs/design/code-puzzles.md`](docs/design/code-puzzles.md).
 
-**Status (Checkpoint 2):** every algorithm covered so far, plus **transformations and animation**, is implemented in **pure C++** and applied to components of the game. Each shape is produced by our own code writing individual pixels to a `Canvas`, and every animation is saved by our own GIF encoder. No graphics library is used.
+**Status (Checkpoint 3):** the game is **playable** in an OpenGL window. Every frame is still drawn by **our own C++ algorithms** into a `Canvas`; OpenGL displays it as a texture and draws the hover outlines with its own primitives, and GLFW provides the window, mouse and keyboard. One full investigation loop works end to end, including the first **code puzzle**.
 
-![Game layout](docs/screenshots/16_full_layout.png)
+![The game running in its OpenGL window](docs/screenshots/gl_game.png)
 
-![Evidence board animation](docs/gifs/19_board_animation.gif)
+![Prototype playthrough](docs/gifs/32_prototype_playthrough.gif)
 
 ## Group members and responsibilities
 
-| Member | GitHub | Role | Checkpoint 1 work | Checkpoint 2 work |
-|---|---|---|---|---|
-| Caleb Kipchirchir | [@C-Sawe](https://github.com/C-Sawe) | Graphics & Algorithms | Canvas + BMP writer, bitmap font, DDA & Bresenham lines, midpoint circle & ellipse, 2D transformation matrices, integration | Shear and reflection, our own animated GIF encoder (palette + LZW), CP2 integration |
-| Alvin Kimani | [@alvviinn](https://github.com/alvviinn) | Environment & Visual Design | Polygon representation, scanline fill (edge table / active edge table), flood & boundary fill, crime scene, character line-up | Detective walk cycle (hierarchical limb rotation, sprite scaling), door/drawer opening animations |
-| Sudheysi Ali | [@Satasdin](https://github.com/Satasdin) | Puzzles & Game Mechanics | Cohen–Sutherland line clipping, Sutherland–Hodgman polygon clipping, point-in-polygon, safe dial, torn document puzzle, clipping/magnifier demo | Safe combination + door opening, torn letter reassembling, magnifier zoom |
-| Latiffa | [@latifahjaafar](https://github.com/latifahjaafar) | Interface, Animation & Integration | Bézier curves (de Casteljau), Catmull-Rom splines, evidence board, Case File panel, documentation and submission | Animation core (lerp, easing, keyframes), evidence board animation, scene transitions |
+| Member | GitHub | Role | Checkpoint 1 work | Checkpoint 2 work | Checkpoint 3 work |
+|---|---|---|---|---|---|
+| Caleb Kipchirchir | [@C-Sawe](https://github.com/C-Sawe) | Graphics & Algorithms | Canvas + BMP writer, bitmap font, DDA & Bresenham lines, midpoint circle & ellipse, 2D transformation matrices, integration | Shear and reflection, our own animated GIF encoder (palette + LZW), CP2 integration | GLFW window + render loop, Canvas→OpenGL texture bridge, ClueScript interpreter, prototype integration |
+| Alvin Kimani | [@alvviinn](https://github.com/alvviinn) | Environment & Visual Design | Polygon representation, scanline fill (edge table / active edge table), flood & boundary fill, crime scene, character line-up | Detective walk cycle (hierarchical limb rotation, sprite scaling), door/drawer opening animations | Playable crime scene: hotspots, detective walks to objects, laptop, painting close-up |
+| Sudheysi Ali | [@Satasdin](https://github.com/Satasdin) | Puzzles & Game Mechanics | Cohen–Sutherland line clipping, Sutherland–Hodgman polygon clipping, point-in-polygon, safe dial, torn document puzzle, clipping/magnifier demo | Safe combination + door opening, torn letter reassembling, magnifier zoom | Game state machine, mouse picking/dragging, interactive letter + safe puzzles, code-puzzle checking (IoU) |
+| Latiffa | [@latifahjaafar](https://github.com/latifahjaafar) | Interface, Animation & Integration | Bézier curves (de Casteljau), Catmull-Rom splines, evidence board, Case File panel, documentation and submission | Animation core (lerp, easing, keyframes), evidence board animation, scene transitions | Text layout + buttons, in-game code editor and laptop, live Case File, interactive evidence board |
 
 ## Technologies and tools
 
 - **C++17**: all graphics code, with no graphics library
-- **CMake 3.10+**: build system (works with g++, clang++ and MSVC)
+- **CMake 3.14+**: build system (works with g++, clang++ and MSVC)
 - **Git & GitHub**: branches per member, issues, milestones and pull requests
 - **Output:** 24-bit BMP images and animated GIFs, both written by our own encoders (`src/core/canvas.cpp`, `src/core/gif.cpp`)
-- **Later checkpoints:** OpenGL (CP3), once it is introduced in class
+- **OpenGL + GLFW (CP3):** OpenGL displays our Canvas as a texture and draws vector overlays (`GL_LINE_LOOP`); GLFW gives the window, mouse and keyboard. GLFW is used if installed, otherwise CMake downloads it automatically.
 
 ## Graphics techniques implemented so far
 
@@ -50,6 +50,13 @@ Some locked areas, such as the safe's electronic lock and the security panel by 
 | Raster transforms *(CP2)* | Inverse mapping: each destination pixel looks up its source through inverse(M) | Sprite scaling, safe door, magnifier zoom, letter pieces | `characters.cpp`, `safe.cpp`, `magnifier.cpp`, `document.cpp` | ✅ |
 | Transitions *(CP2)* | Cross-fade and fade through black (colour lerp), wipe (clip window), iris (circle) | Moving between scenes | `src/animation/transitions.cpp` | ✅ |
 | GIF encoding *(CP2)* | Palette building + LZW compression (9–12-bit codes) | Saving every animation | `src/core/gif.cpp` | ✅ |
+| OpenGL display *(CP3)* | Canvas uploaded as a texture each frame, letterboxed textured quad, orthographic projection; GL_LINE_LOOP overlays | The game window | `src/platform/gl_canvas.cpp` | ✅ |
+| Game loop *(CP3)* | Fixed time step (accumulator), input events translated to canvas coordinates | The game window | `src/platform/window_app.cpp` | ✅ |
+| Picking and dragging *(CP3)* | Point-in-polygon on transformed shapes, grab offset, boundary clamping, dial angle via atan2 | Hotspots, letter pieces, safe dial, board cards | `src/game/input.cpp`, `puzzles.cpp` | ✅ |
+| Snapping *(CP3)* | Position + angle tolerance, then jump to the exact pose | Torn letter pieces | `src/game/puzzles.cpp` | ✅ |
+| Interpreter *(CP3)* | Lexer → recursive-descent parser → AST → tree-walking evaluator with a step limit; turtle heading uses the rotation matrix | ClueScript code puzzle | `src/script/` | ✅ |
+| Answer checking *(CP3)* | Rasterise both drawings with thick lines, Intersection over Union ≥ 0.85 | The safe's alarm (code puzzle) | `src/game/code_check.cpp` | ✅ |
+| Monospace text editing *(CP3)* | Row/column ↔ pixel arithmetic on the font grid, word wrap | Code editor, Case File | `src/ui/` | ✅ |
 
 ## Screenshots
 
@@ -58,6 +65,16 @@ Some locked areas, such as the safe's electronic lock and the security panel by 
 | ![Crime scene](docs/screenshots/10_crime_scene.png) **Crime scene:** polygons, fills, circles, ellipses | ![Characters](docs/screenshots/11_characters.png) **Characters:** ellipses, rotated polygons, circles |
 | ![Evidence board](docs/screenshots/15_evidence_board.png) **Evidence board:** Bézier strings, Catmull-Rom handwriting | ![Torn document](docs/screenshots/13_torn_document.png) **Torn letter:** polygon pieces + inverse transform mapping |
 | ![Safe dial](docs/screenshots/12_safe_dial.png) **Safe dial:** circles + rotation about a pivot | ![Clipping](docs/screenshots/14_clipping_scene.png) **Clipping:** viewport and magnifier |
+
+### Playable prototype (Checkpoint 3)
+
+| | |
+|---|---|
+| ![Explore](docs/gifs/31_explore.gif) **Explore:** hover tags, detective walks to the drawer | ![Puzzles](docs/gifs/27_interactive_puzzles.gif) **Puzzles:** drag + rotate + snap; dial dragging |
+| ![Laptop](docs/gifs/29_laptop_editor.gif) **Code puzzle:** fix the program, RUN, IoU check | ![Board](docs/gifs/30_board_ui.gif) **Evidence board:** drag cards, tie strings |
+| ![ClueScript](docs/screenshots/26_cluescript.png) **ClueScript interpreter** | ![Code check](docs/screenshots/28_code_check.png) **Answer check:** IoU against the target |
+
+Screenshots of the real OpenGL window and key frames of every CP3 demo are collected in [`docs/checkpoint3_prototype.pdf`](docs/checkpoint3_prototype.pdf).
 
 ### Animations (Checkpoint 2)
 
@@ -83,6 +100,11 @@ src/curves/      Bézier and Catmull-Rom
 src/transform/   2D transformation matrices (incl. shear, reflection)
 src/animation/   interpolation, easing, keyframe tracks, scene transitions
 src/scenes/      game components built from the algorithms above
+src/script/      ClueScript: lexer, parser, AST, interpreter, drawing (CP3)
+src/game/        game state, picking/dragging, puzzles, explore screen, Game (CP3)
+src/ui/          text helpers, code editor + laptop, Case File, evidence board (CP3)
+src/platform/    GLFW window + loop, Canvas->OpenGL bridge (the only code that uses GLFW/OpenGL)
+apps/            windowed programs: the_last_clue (the game), scene_viewer
 demos/           one program per demo; each writes an image (and, from 17 on, a GIF) to output/
 scripts/         render_all.sh, GitHub setup scripts
 docs/            screenshots, checkpoint PDFs, design documents (docs/design/)
@@ -106,6 +128,22 @@ cmake --build build
 ./build/10_crime_scene             # Windows (Visual Studio): build\Debug\10_crime_scene.exe
 ```
 
+### Play the game (CP3)
+
+```bash
+cmake -B build -S .
+cmake --build build
+./build/the_last_clue              # Windows (Visual Studio): build\Debug\the_last_clue.exe
+```
+
+The first configure downloads GLFW if it is not installed (internet needed once). On Linux, install `libglfw3-dev` (or the X11 development packages) first. To build only the image demos, without a window: `cmake -B build -S . -DLASTCLUE_GAME=OFF`.
+
+**Controls:** click objects to investigate (the detective walks there) · **Esc** returns to the study · torn letter: drag pieces, **scroll / R / right-click** to rotate · safe: drag the dial, **Enter** locks a number, **←/→** fine-tune · laptop: type to edit, **RUN** or **F1** · evidence board: drag cards, click two pins to tie a string.
+
+**Walkthrough:** drawer → torn letter → painting (code + symbol) → laptop (fix the star program) → safe (37-12-85) → evidence board → deduction.
+
+### Demos
+
 Run demos from the **repository root**. The images appear in `output/` and open in any image viewer. Animation demos write a `.gif` (open it in a browser) plus a `.bmp` sheet of four key frames.
 
 | Demo | Shows |
@@ -119,21 +157,25 @@ Run demos from the **repository root**. The images appear in `output/` and open 
 | `19_board_animation`, `20_transitions` | Evidence board animation, scene transitions |
 | `21_walk_cycle`, `22_opening` | Detective walking, door and drawers opening |
 | `23_safe_animation`, `24_document_animation`, `25_magnifier_zoom` | Puzzle animations |
+| `26_cluescript` | ClueScript programs run by our interpreter |
+| `27_interactive_puzzles`, `28_code_check` | Puzzles driven by scripted mouse input; IoU answer checking |
+| `29_laptop_editor`, `30_board_ui` | Code editor (typing + RUN); live Case File and evidence board |
+| `31_explore`, `32_prototype_playthrough` | Playable crime scene; the whole loop played by a script |
 
 ## Current progress
 
 - [x] **Checkpoint 1 (Technical Foundation):** all algorithms covered so far, applied to game components
 - [x] **Checkpoint 2 (Transformation & Animation, week 10):** shear/reflection, animation core (easing, keyframes), our own GIF encoder, walk cycle, opening animations, safe/letter/magnifier animations, scene transitions
-- [ ] **Checkpoint 3 (OpenGL + Prototype, week 12):** window and input, mouse picking, playable investigation loop, ClueScript interpreter + in-game code editor + first code puzzle
+- [x] **Checkpoint 3 (OpenGL + Prototype, week 12):** GLFW window + OpenGL display, mouse picking and dragging, game state machine, interactive letter and safe puzzles, ClueScript interpreter + in-game code editor + first code puzzle, live Case File and evidence board — one full investigation loop playable
 - [ ] **Final project (week 13):** deduction, 4–6 puzzles (including code puzzles: security wiring, encrypted email), polish
 
 Progress is tracked in [Issues](https://github.com/C-Sawe/the-last-clue/issues) and [Milestones](https://github.com/C-Sawe/the-last-clue/milestones).
 
-## Planned feature: code puzzles
+## Code puzzles
 
 | Part | Technique | Milestone |
 |---|---|---|
-| ClueScript interpreter (lexer → recursive-descent parser → AST → tree-walking evaluator, step limit) | Pure C++ | CP3 |
+| ClueScript interpreter (lexer → recursive-descent parser → AST → tree-walking evaluator, step limit) | Pure C++ | ✅ CP3 |
 | Player's drawing commands (`line`, `circle`, `forward`/`turn` turtle) | Bresenham, midpoint circle/ellipse, rotation of the heading vector | CP3 |
 | Output clipped to the in-game monitor | Cohen–Sutherland, Sutherland–Hodgman | CP3 |
 | Checking the answer | Rasterised IoU comparison; point-in-polygon + segment intersection for wiring | CP3 / Final |
@@ -144,7 +186,9 @@ The full design is in [`docs/design/code-puzzles.md`](docs/design/code-puzzles.m
 
 ## Known limitations
 
-- Animations are pre-rendered to GIF files. There is no window or mouse input yet; those come in CP3 with OpenGL.
+- OpenGL is used for display and overlays; the drawing itself is done on the CPU by our algorithms, so very large windows scale the frame rather than redrawing at higher resolution.
+- The final deduction (WHO / HOW / WHY) and the remaining puzzles (fingerprint, wiring, email) come in the final build; the Old Mill door shows a message for now.
+- ClueScript is deliberately small (no functions or lists).
 - The GIF palette is limited to 256 colours across an animation (enough for our flat-colour art, but gradients would band).
 - The detective is drawn facing the front, so the walk is shown as alternating steps rather than a side-on stride.
 - Text uses our own 5×7 bitmap font, so it is upper-case only and has no anti-aliasing.
