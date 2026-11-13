@@ -182,26 +182,27 @@ void renderCharacterLineup(Canvas& c) {
 //    and drawn by mapping each room pixel back with inverse(M) (no holes).
 //    A small vertical bob (|sin|) makes the step feel weighted.
 // ---------------------------------------------------------------------------
-void renderWalkFrame(Canvas& c, double t) {
-    const double PI = 3.14159265358979;
-    renderCrimeScene(c);
-
+// CP3 (issue #44): the detective can be placed anywhere in a scene, so the game
+// can walk him to whatever the player clicks. walkPhase drives the limbs
+// (radians; any value), bob lifts him slightly on each step.
+void drawDetective(Canvas& c, PointF feetPos, double walkPhase, bool walking) {
     const Color key{255, 0, 255};
     Canvas sprite(240, 420, key);
     Look det{SuspectColour::Detective, Color{70, 60, 50}, Skin1, Color{60, 40, 20}};
     det.hat = true;
-    const double cycle = t * 4 * 2 * PI;                       // 4 full strides
     Pose pose;
-    pose.legSwing = 0.38 * std::sin(cycle);
-    pose.armSwing = 0.30 * std::sin(cycle);
+    if (walking) {
+        pose.legSwing = 0.38 * std::sin(walkPhase);
+        pose.armSwing = 0.30 * std::sin(walkPhase);
+    }
     drawCharacter(sprite, 120, det, pose);
 
     const double s = 0.42;
-    const PointF feet{walkX(t), 462 - 6 * std::fabs(std::sin(cycle))};
+    const PointF feet{feetPos.x, feetPos.y - (walking ? 6 * std::fabs(std::sin(walkPhase)) : 0)};
     const Mat3 M = translate(feet.x, feet.y) * scale(s, s) * translate(-120, -402);
     const Mat3 back = inverse(M);
 
-    fillEllipse(c, {static_cast<int>(feet.x), 466}, 30, 6, Color{70, 46, 27});   // shadow on the floor
+    fillEllipse(c, {static_cast<int>(feet.x), static_cast<int>(feetPos.y) + 4}, 30, 6, Color{70, 46, 27});   // shadow on the floor
     const int x0 = static_cast<int>(feet.x - 120 * s) - 2, x1 = static_cast<int>(feet.x + 120 * s) + 2;
     const int y0 = static_cast<int>(feet.y - 402 * s) - 2, y1 = static_cast<int>(feet.y + 18 * s) + 2;
     for (int y = y0; y <= y1; ++y)
@@ -210,4 +211,10 @@ void renderWalkFrame(Canvas& c, double t) {
             const Color col = sprite.getPixel(static_cast<int>(src.x), static_cast<int>(src.y));
             if (sprite.inBounds(static_cast<int>(src.x), static_cast<int>(src.y)) && col != key) c.setPixel(x, y, col);
         }
+}
+
+void renderWalkFrame(Canvas& c, double t) {
+    const double PI = 3.14159265358979;
+    renderCrimeScene(c);
+    drawDetective(c, {walkX(t), 462}, t * 4 * 2 * PI, true);   // 4 full strides
 }
