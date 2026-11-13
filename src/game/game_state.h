@@ -15,9 +15,12 @@
 
 namespace game {
 
-enum class Screen { Explore, Letter, Painting, Computer, Safe, Board, Deduction };
-enum class Evidence { TornLetter, SafeCode, Key, Fingerprint };
-const int EvidenceTotal = 4;
+// Final build (issues #48 #50 #62): the security panel, the fingerprint
+// comparison and the outcome screen; the email (motive) and the vial (method).
+enum class Screen { Explore, Letter, Painting, Computer, Safe, Board, Deduction, Panel, Prints, Outcome };
+enum class Evidence { TornLetter, SafeCode, Key, Fingerprint, Email, Vial };
+const int EvidenceTotal = 6;
+const int MaxAccusations = 3;                   // the third wrong accusation closes the case
 
 const char* screenName(Screen s);
 const char* evidenceName(Evidence e);
@@ -29,7 +32,9 @@ struct GameState {
     std::vector<std::pair<int, int>> links;     // evidence-board strings between card ids
 
     std::string toast;                          // short message shown at the bottom
-    double toastTime = 0;
+    double toastTime = 0;                       // seconds left on screen
+    double toastLength = 0;                     // how long it was shown for (for the slide in/out)
+    int accusations = 0;                        // final build: wrong accusations made so far
 
     bool has(const std::string& flag) const { return flags.count(flag) > 0; }
     void set(const std::string& flag) { flags.insert(flag); }

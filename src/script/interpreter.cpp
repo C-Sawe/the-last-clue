@@ -188,6 +188,19 @@ private:
             std::string line;
             for (const auto& a : s.args) line += (line.empty() ? "" : " ") + show(eval(*a));
             res_.printed.push_back(line);
+        } else if (n == "shift") {
+            // Caesar shift: move every letter n places along the alphabet (wrapping
+            // Z -> A), leave everything else alone, and print the result.
+            needArgs(s, 2, "shift \"TEXT\" 3");
+            const Value v = eval(*s.args[0]);
+            if (!v.isText) fail(s.line, "'shift' needs text in quotes first: shift \"TEXT\" 3");
+            const long long k = static_cast<long long>(std::lround(number(*s.args[1])));
+            std::string out = v.text;
+            for (char& ch : out) {
+                if (ch >= 'a' && ch <= 'z') ch = static_cast<char>(ch - 'a' + 'A');
+                if (ch >= 'A' && ch <= 'Z') ch = static_cast<char>('A' + (((ch - 'A' + k) % 26) + 26) % 26);
+            }
+            res_.printed.push_back(out);
         } else {
             fail(s.line, "unknown command '" + n + "'");
         }

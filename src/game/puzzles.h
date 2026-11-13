@@ -82,4 +82,53 @@ private:
     void enterNumber();
 };
 
+// ---------------------------------------------------------------------------
+// Fingerprint matching (final build, issue #50): the print lifted from the safe
+// was found at an angle. Turn it (drag around it, scroll, R, or the arrow keys) and pick
+// the suspect whose print it matches. The match score is the INTERSECTION OVER
+// UNION of the two prints' ink: the lifted print is rotated by inverse mapping,
+// both prints become masks (thickened by one pixel so rounding doesn't matter),
+// and IoU = |A and B| / |A or B|. COMPARE passes at IoU >= MatchThreshold.
+// Turning snaps to 5-degree steps; the right suspect scores 100% when lined up
+// and ~55% at 5 degrees off, while the wrong suspects stay below 50% at any angle.
+// ---------------------------------------------------------------------------
+class PrintsPuzzle {
+public:
+    static constexpr double MatchThreshold = 0.53;
+    static constexpr double StartAngle = 1.0471975511965976;     // 60 degrees off
+
+    PrintsPuzzle();
+    void reset();
+    void mouseDown(PointF p);
+    void mouseMove(PointF p);
+    void mouseUp(PointF p);
+    void scroll(PointF p, double dir);
+    void key(input::Key k);
+    void render(Canvas& c) const;                 // 800 x 500
+
+    void select(int suspect) { selected_ = suspect; }
+    void setAngle(double a) { angle_ = a; }
+    double angle() const { return angle_; }
+    int selected() const { return selected_; }
+    double score() const;                         // IoU with the selected suspect (0 if none)
+    void compare();                               // COMPARE button
+    bool solved() const { return solved_; }
+    std::string takeMessage();
+
+    PointF printCentre() const { return {150, 230}; }    // for scripted demos
+    PointF cardCentre(int suspect) const;
+
+private:
+    double angle_ = StartAngle, grabAngle_ = 0, grabStart_ = 0;
+    bool dragging_ = false, solved_ = false;
+    int selected_ = -1, hover_ = -1;
+    PointF mouse_{0, 0};
+    std::string message_;
+    int cardAt(PointF p) const;
+};
+
+// Exposed for demos and tests: IoU between the lifted print (turned by `angle`)
+// and a suspect's print, both at `size` pixels.
+double printMatchScore(int suspect, double angle, int size = 160);
+
 }  // namespace game
