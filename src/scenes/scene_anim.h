@@ -7,6 +7,10 @@ struct SceneState {
     double door = 0;            // door swings into the room about its hinge
     double deskDrawer = 0;      // desk drawer slides out, showing the torn letter pieces
     double cabinetDrawer = 0;   // top cabinet drawer slides out
+    // Final build (issue #60): the security panel, the safe's alarm and the room behind the door
+    bool panelFixed = false;    // wiring panel by the door powered (LED green)
+    bool alarmOff = false;      // the safe's alarm LED (red = armed, green = off)
+    bool vialTaken = false;     // the vial in the back room has been picked up
 };
 
 void renderCrimeSceneState(Canvas& c, const SceneState& s);   // 800 x 500
