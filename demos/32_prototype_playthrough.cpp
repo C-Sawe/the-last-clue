@@ -133,7 +133,7 @@ int main() {
     p.key(input::Key::Escape, 0.6);
 
     // 6. Evidence board: tie two strings
-    p.click({125, 415}, 0.6);                           // EVIDENCE BOARD button
+    p.click({67, 417}, 0.6);                            // EVIDENCE BOARD button
     auto& B = p.g.board();
     const int pairs[][2] = {{10, 1}, {13, 3}};
     for (const auto& pr : pairs) {
@@ -143,7 +143,7 @@ int main() {
     p.wait(0.6);
     p.snap();
 
-    // 7. Deduction (placeholder for the final build)
+    // 7. Deduction (needs every piece of evidence in the final build: refused here)
     p.click({125, 451}, 1.2);
     p.snap();
 

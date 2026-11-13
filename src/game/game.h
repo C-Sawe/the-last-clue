@@ -1,9 +1,12 @@
 #pragma once
-// The playable prototype — Caleb (CP3, issue #47)
+// The game — Caleb (CP3 issue #47, final build issue #54)
 //
 // Game ties every screen together into one investigation loop:
-//   Explore -> drawer -> torn letter -> painting (code) -> laptop (code puzzle)
-//   -> safe (combination) -> evidence board -> deduction (final build)
+//   Explore -> drawer -> torn letter -> painting (code) -> laptop (code puzzle B)
+//   -> safe (combination) -> key + fingerprint
+//   -> security panel (code puzzle A) -> door -> back room (vial)
+//   -> laptop email (code puzzle C) -> fingerprint comparison
+//   -> evidence board -> deduction (WHO / HOW / WHY) -> case solved / failed
 // It owns the GameState (Sudheysi), the screens (Alvin, Sudheysi, Latiffa) and
 // the Case File panel (Latiffa), routes input to whichever screen is active,
 // reacts to puzzles being solved, and cross-fades between screens.
@@ -18,6 +21,7 @@
 #include "puzzles.h"
 #include "ui/case_file_ui.h"
 #include "ui/code_editor.h"
+#include "ui/deduction_ui.h"
 
 namespace game {
 
@@ -49,6 +53,11 @@ public:
     ui::LaptopScreen& laptop() { return laptop_; }
     ui::BoardUI& board() { return board_; }
     ExploreScreen& explore() { return explore_; }
+    ui::LaptopScreen& panelTerminal() { return panelTerm_; }
+    PrintsPuzzle& prints() { return prints_; }
+    ui::DeductionUI& deduction() { return deduction_; }
+    ui::OutcomeUI& outcome() { return outcome_; }
+    void restart();                                          // PLAY AGAIN: a fresh case, skipping the title
 
 private:
     GameState st_;
@@ -57,8 +66,12 @@ private:
     LetterPuzzle letter_;
     SafePuzzle safe_;
     ui::LaptopScreen laptop_;
+    ui::LaptopScreen panelTerm_{"SECURITY PANEL", {wiringPuzzle()}};
+    PrintsPuzzle prints_;
     ui::BoardUI board_;
     ui::CaseFileUI panel_;
+    ui::DeductionUI deduction_;
+    ui::OutcomeUI outcome_;
 
     bool title_ = true;
     PointF mouse_{0, 0};
@@ -70,9 +83,10 @@ private:
 
     static PointF local(PointF p) { return {p.x - PanelW, p.y}; }
     void renderView(Canvas& view);
-    void renderDeduction(Canvas& view) const;
     void renderTitle(Canvas& c) const;
     void onEnter(Screen s);
+    void react(double dt);
+    void outcomeAction(ui::OutcomeUI::Action a);                                   // puzzles solved -> flags, evidence, messages
 };
 
 }  // namespace game
