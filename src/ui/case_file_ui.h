@@ -4,6 +4,10 @@
 // CaseFileUI: the left panel of the game window. Unlike the CP1 picture it is
 // LIVE: evidence slots fill in as the GameState collects evidence, and its
 // buttons (board, deduction, back) respond to hover and clicks.
+// Final build (issues #51 #52): six evidence slots, each edged in its evidence
+// category colour; a newly found piece POPS into its slot (scale with an
+// overshoot, OutBack easing) and its edge flashes; a PRINTS button opens the
+// fingerprint comparison.
 //
 // BoardUI: the interactive evidence board. Every card can be DRAGGED (grab
 // offset + clamped to the cork). Clicking one pin and then another ties a
@@ -20,15 +24,19 @@ namespace ui {
 
 class CaseFileUI {
 public:
-    enum class Action { None, Board, Deduction, Back };
+    enum class Action { None, Board, Prints, Deduction, Back };
     CaseFileUI();
     void mouseMove(PointF p) { mouse_ = p; }
+    void update(double dt, const game::GameState& st);            // starts the "new evidence" pop
     Action click(PointF p, const game::GameState& st) const;
     void render(Canvas& c, const game::GameState& st) const;      // 250 x 500
 
 private:
     PointF mouse_{-1, -1};
-    Button board_, deduce_, back_;
+    Button board_, prints_, deduce_, back_;
+    size_t seen_ = 0;                              // evidence count already shown
+    double popT_ = 1;                              // 0 -> 1 pop animation of the newest slot
+    double time_ = 0;
 };
 
 class BoardUI {
