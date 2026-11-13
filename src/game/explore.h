@@ -9,6 +9,11 @@
 //     the drawer slides open, the door is tried, the safe/laptop/painting open, ...
 //   - A laptop sits on the filing cabinet (the code puzzle), its screen red
 //     (alarm armed) or green (disabled).
+//   - Final build (issue #60): the security panel beside the door (wiring
+//     puzzle), the door's electronic lock (needs the panel rewired AND the
+//     key), and the back room behind it with the poison vial. Hotspots that
+//     only exist in some states (the vial) are added and removed as the
+//     game state changes.
 //
 // PaintingView: close-up of the painting. Once the letter is solved, the
 // painting swings aside about its nail (rotation about a pivot, drawn by inverse
@@ -36,7 +41,8 @@ public:
     PointF detectivePos() const { return {x_, 462}; }
 
 private:
-    std::vector<Hotspot> spots_;
+    std::vector<Hotspot> all_;                                   // every hotspot in the study
+    std::vector<Hotspot> spots_;                                 // the ones available right now
     PointF mouse_{-1, -1};
     double x_ = 700, targetX_ = 700, phase_ = 0;
     std::string pending_;                                        // action to run on arrival
@@ -44,6 +50,7 @@ private:
     bool openingDrawer_ = false;
 
     void arrive(GameState& st);
+    void refresh(const GameState& st);                           // rebuild spots_ from the state
     double standX(const std::string& id) const;
 };
 

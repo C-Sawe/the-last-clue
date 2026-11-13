@@ -32,7 +32,7 @@ void drawLaptop(Canvas& c, bool alarmOff) {
 
 ExploreScreen::ExploreScreen() {
     const Polygon papers = apply(rotateAbout(-0.12, {385, 242}), makeRect(354, 230, 62, 24));
-    spots_ = {
+    all_ = {
         {"door", makeRect(640, 120, 92, 212), "DOOR"},
         {"clock", makeRegularPolygon({470, 100}, 32, 16), "CLOCK"},
         {"painting", makeRect(300, 60, 100, 80), "PAINTING"},
@@ -40,7 +40,18 @@ ExploreScreen::ExploreScreen() {
         {"papers", papers, "PAPERS"},
         {"drawer", makeRect(400, 262, 108, 38), "DESK DRAWER"},
         {"laptop", Polygon{{{534, 126}, {608, 126}, {618, 178}, {532, 178}}}, "LAPTOP"},
+        {"panel", makeRect(752, 168, 38, 62), "SECURITY PANEL"},
+        {"vial", makeRect(686, 236, 28, 36), "SMALL BOTTLE"},          // back room, once the door is open
     };
+    spots_ = all_;
+    spots_.pop_back();                                                  // no vial until the door opens
+}
+
+void ExploreScreen::refresh(const GameState& st) {
+    const bool backRoom = doorT_ >= 0.6 && !st.has("found:vial");
+    spots_.clear();
+    for (const auto& h : all_)
+        if (h.id != "vial" || backRoom) spots_.push_back(h);
 }
 
 double ExploreScreen::standX(const std::string& id) const {
@@ -49,6 +60,8 @@ double ExploreScreen::standX(const std::string& id) const {
     if (id == "painting") return 350;
     if (id == "laptop") return 575;
     if (id == "door") return 690;
+    if (id == "panel") return 760;
+    if (id == "vial") return 700;
     if (id == "clock") return 470;
     return 385;                                                     // papers
 }
@@ -78,6 +91,7 @@ void ExploreScreen::update(double dt, GameState& st) {
         st.go(Screen::Letter);
     }
     if (st.has("open:door") && doorT_ < 1) doorT_ = std::min(1.0, doorT_ + dt / 0.9);
+    refresh(st);
 }
 
 // What each object does when the detective reaches it.
@@ -96,12 +110,22 @@ void ExploreScreen::arrive(GameState& st) {
     } else if (id == "laptop") {
         st.go(Screen::Computer);
     } else if (id == "door") {
-        if (st.hasEvidence(Evidence::Key)) { st.set("open:door"); st.say("THE KEY FITS. THE OLD MILL AWAITS (FINAL BUILD)"); }
-        else st.say("LOCKED. IT NEEDS A KEY");
+        // Two locks: the electronic one (powered from the panel) and a key lock.
+        if (st.has("open:door")) st.say("A SMALL BACK ROOM. SOMETHING ON THE TABLE?");
+        else if (!st.has("solved:wiring")) st.say("THE ELECTRONIC LOCK IS DEAD - CHECK THE PANEL BESIDE THE DOOR");
+        else if (!st.hasEvidence(Evidence::Key)) st.say("THE LOCK HAS POWER NOW, BUT IT STILL NEEDS A KEY");
+        else { st.set("open:door"); st.say("THE KEY TURNS... THE DOOR SWINGS OPEN"); }
+    } else if (id == "panel") {
+        if (st.has("solved:wiring")) st.say("THE PANEL HUMS. THE DOOR LOCK HAS POWER");
+        else st.go(Screen::Panel);
+    } else if (id == "vial") {
+        st.set("found:vial");
+        st.addEvidence(Evidence::Vial);
+        st.say("AN EMPTY VIAL... IT SMELLS OF BITTER ALMONDS");
     } else if (id == "clock") {
         st.say("STOPPED AT 9:00... THE TIME ON THE NOTE?");
     } else {
-        st.say("BILLS AND RECEIPTS. NOTHING USEFUL");
+        st.say("THE FIRM'S ACCOUNTS... THE NUMBERS DON'T ADD UP");
     }
 }
 
@@ -110,6 +134,9 @@ void ExploreScreen::render(Canvas& c, const GameState& st) const {
     // (closed must be exactly 0: the scene shows the "interactive" outline only then)
     scene.deskDrawer = drawerT_ <= 0 ? 0.0 : anim::ease(anim::Ease::OutBack, drawerT_);
     scene.door = doorT_ <= 0 ? 0.0 : anim::ease(anim::Ease::InOutCubic, doorT_);
+    scene.panelFixed = st.has("solved:wiring");
+    scene.alarmOff = st.has("solved:code");
+    scene.vialTaken = st.has("found:vial");
     renderCrimeSceneState(c, scene);
     drawLaptop(c, st.has("solved:code"));
     drawDetective(c, {x_, 462}, phase_, !pending_.empty());
