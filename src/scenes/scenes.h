@@ -15,6 +15,23 @@ namespace SuspectColour {
     const Color Highlight {255, 214,  60};   // interactive objects
 }
 
+// Final build (issue #51): one palette for feedback and evidence, so every
+// screen says "right", "wrong" and "new" in the same colours.
+namespace Feedback {
+    const Color Correct {100, 210, 120};     // solved, accepted, matched
+    const Color Wrong   {235, 100,  90};     // rejected, short circuit, no match
+    const Color Info    {180, 184, 200};     // neutral console text
+    const Color Hint    {255, 214,  60};     // hints = the highlight yellow
+    const Color Panel   { 20,  20,  26};     // dark tag / toast background
+}
+
+// Evidence categories: what each clue tells the detective.
+namespace EvidenceInk {
+    const Color Document {120, 140, 200};    // letters, codes, email
+    const Color Physical {220, 185,  70};    // key, vial
+    const Color Forensic {200,  80, 120};    // fingerprint
+}
+
 void renderCrimeScene(Canvas& c);                         // 800 x 500
 void renderCharacterLineup(Canvas& c);                    // 900 x 460
 void renderSafeDial(Canvas& c, double dialAngleRadians);  // 420 x 420
