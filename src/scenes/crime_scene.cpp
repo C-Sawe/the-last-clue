@@ -107,6 +107,35 @@ void door(Canvas& c, double open = 0) {
     if (open == 0) highlight(c, 711, 221, 18, 18);
 }
 
+// Final build (issue #60): the back room behind the door. A small side table
+// with the empty poison vial; it only shows once the door is mostly open.
+void backRoom(Canvas& c, double open, bool vialTaken) {
+    if (open < 0.6) return;
+    rect(c, 676, 268, 48, 6, Color{90, 62, 40}, Palette::Black);       // table top
+    drawThickLine(c, {682, 274}, {682, 318}, 3, Color{70, 48, 30});    // legs
+    drawThickLine(c, {718, 274}, {718, 318}, 3, Color{70, 48, 30});
+    if (vialTaken) return;
+    const Polygon vial{{{696, 246}, {704, 246}, {704, 252}, {708, 258}, {708, 268}, {692, 268}, {692, 258}, {696, 252}}};
+    scanlineFill(c, vial, Color{150, 200, 190});                        // glass
+    scanlineFill(c, makeRect(693, 260, 14, 8), Color{90, 150, 120});    // last drop of liquid
+    drawPolygonOutline(c, vial, Color{40, 60, 60});
+    fillOnly(c, 695, 242, 10, 4, Color{60, 40, 30});                   // cork
+    drawPolygonOutline(c, makeRect(686, 236, 28, 36), SuspectColour::Highlight);   // interactive
+}
+
+// Final build (issue #60): the wiring panel on the wall beside the door.
+// Red LED = the door's electronic lock has no power; green = rewired.
+void securityPanel(Canvas& c, bool fixed) {
+    rect(c, 752, 168, 38, 62, Color{120, 124, 132}, Palette::Black);
+    rect(c, 757, 174, 28, 34, Color{60, 64, 72}, Color{30, 30, 36});
+    for (int i = 0; i < 3; ++i)                                         // vent slots
+        drawLineBresenham(c, {760, 180 + i * 6}, {781, 180 + i * 6}, Color{90, 94, 102});
+    fillCircle(c, {771, 218}, 4, fixed ? Feedback::Correct : Feedback::Wrong);
+    drawCircleMidpoint(c, {771, 218}, 4, Palette::Black);
+    drawThickLine(c, {771, 230}, {771, 320}, 2, Color{50, 50, 56});    // conduit down to the floor
+    if (!fixed) highlight(c, 752, 168, 38, 62);
+}
+
 // A drawer pulled towards the viewer: the dark inside appears, and the front
 // moves down a little and grows slightly (closer = bigger) — translate + scale.
 void drawerFront(Canvas& c, double x, double y, double w, double h, double open,
@@ -164,7 +193,7 @@ void desk(Canvas& c, double open = 0) {
     fillEllipse(c, {495, 246}, 14, 2, Color{90, 50, 30});                // spilled coffee
 }
 
-void safe(Canvas& c) {
+void safe(Canvas& c, bool alarmOff = false) {
     rect(c, 35, 235, 115, 110, Color{55, 58, 64}, Palette::Black);
     rect(c, 45, 245, 95, 90, Color{72, 76, 84}, Color{30, 30, 30});
     fillCircle(c, {92, 288}, 18, Color{40, 40, 44});
@@ -176,6 +205,7 @@ void safe(Canvas& c) {
     }
     drawThickLine(c, {120, 275}, {120, 302}, 4, Color{180, 180, 185});    // handle
     for (int cx : {44, 141}) for (int cy : {244, 336}) fillCircle(c, {cx, cy}, 2, Color{170, 170, 175});  // bolts
+    fillCircle(c, {128, 254}, 3, alarmOff ? Feedback::Correct : Feedback::Wrong);   // alarm LED (final build)
     highlight(c, 35, 235, 115, 110);
 }
 
@@ -212,10 +242,12 @@ void renderCrimeSceneState(Canvas& c, const SceneState& st) {
     painting(c);
     clock(c);
     door(c, st.door);
+    backRoom(c, st.door, st.vialTaken);
+    securityPanel(c, st.panelFixed);
     cabinet(c, st.cabinetDrawer);
     rug(c);
     desk(c, st.deskDrawer);
-    safe(c);
+    safe(c, st.alarmOff);
     chalkOutline(c);
     marker(c, 520, 470, "1");
     marker(c, 190, 380, "2");
