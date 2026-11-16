@@ -14,7 +14,7 @@ submitted game; this branch adds the following.
 | Deduction (first time) | **mem4** ("let me think") fades in for 3.5 s |
 | First wrong accusation | **lost1**, then **dofido1** with a GTA-style **WASTED – you let the murderer run away** |
 | Case failed (3rd wrong) | **dofido1** + WASTED again |
-| Case solved | **songmem1**, then **yaah!** the moment the CASE SOLVED stamp lands |
+| Case solved | **songmem1** (its picture, with the victory song from a separate clip as its sound), then **yaah!** the moment the CASE SOLVED stamp lands |
 | Everywhere | Sound effects made in code: clicks, typing, dial ticks, drawer, door creak, safe, evidence chime, success, wrong buzz, whoosh on screen changes, the verdict stamp |
 
 All memes are drawn **faded** (washed out, desaturated). The victory and lost
@@ -47,7 +47,9 @@ bash tools/prepare_memes.sh ~/path/to/folder
 It turns pictures into `assets/memes/<name>.jpg`, and each video into a folder of
 JPEG frames (12 per second) plus `audio.mp3`. The game plays the frames itself,
 scaled to the screen by inverse mapping, while miniaudio plays the sound. A
-missing file just means that moment is skipped.
+missing file just means that moment is skipped. Note: `songmem1/audio.mp3` was
+replaced by hand with the victory song, so re-running the script on the original
+songmem1 video brings its old sound back.
 
 ## How it is built
 
