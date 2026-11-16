@@ -8,23 +8,47 @@
 #include "animation/transitions.h"
 #include "core/font.h"
 #include "deduction.h"
+#include "media/media.h"
 #include "primitives/primitives.h"
 #include "scenes/scenes.h"
 #include "ui/text.h"
 
 namespace game {
 
-Game::Game() { board_.sync(st_); }
+Game::Game() {
+    media::init();
+    memesOn_ = media::assetsFound();
+    memes_.setEnabled(memesOn_);
+    board_.sync(st_);
+}
+
+void Game::setMemes(bool on) {
+    memesOn_ = on;
+    memes_.setEnabled(on);
+    media::setMuted(!on);
+    if (!on) memes_.clear();
+}
 
 void Game::restart() {
+    const bool on = memesOn_;
+    media::stopAll();
     *this = Game();
+    setMemes(on);
     title_ = false;
 }
 
 void Game::onEnter(Screen s) {
     if (s == Screen::Painting) painting_.enter();
     if (s == Screen::Board) board_.sync(st_);
-    if (s == Screen::Deduction) deduction_.enter();
+    if (s == Screen::Deduction) {
+        deduction_.enter();
+        if (!st_.has("meme:think")) {                         // first time at the deduction: "let me think"
+            st_.set("meme:think");
+            memes_.queue({"mem4", false, 3.5, "", false, false, "LET ME THINK..."});
+        }
+    }
+    if (s != Screen::Outcome) media::sfx(media::Sfx::Whoosh);
+    if (s == Screen::Outcome) stampTimer_ = 0.75;             // the stamp lands ~0.75 s into the verdict
 }
 
 // ------------------------------------------------------------------ update
@@ -33,6 +57,8 @@ void Game::update(double dt) {
     st_.update(dt);
     panel_.update(dt, st_);
     if (title_) return;
+    if (memes_.active()) { memes_.update(dt); return; }      // a meme is playing: the game waits
+    if (stampTimer_ > 0 && st_.screen == Screen::Outcome && (stampTimer_ -= dt) <= 0) media::sfx(media::Sfx::Stamp);
 
     switch (st_.screen) {
         case Screen::Explore: explore_.update(dt, st_); break;
@@ -55,7 +81,8 @@ void Game::react(double dt) {
     if (letter_.solved() && !st_.has("solved:letter")) {
         st_.set("solved:letter");
         st_.addEvidence(Evidence::TornLetter);
-        letterTimer_ = 2.2;
+        letterTimer_ = 6.2;                                   // time to read it before going back
+        media::sfx(media::Sfx::Success);
     }
     if (letterTimer_ > 0 && (letterTimer_ -= dt) <= 0) {
         st_.go(Screen::Explore);
@@ -66,6 +93,7 @@ void Game::react(double dt) {
         st_.set("solved:code");
         laptop_.setLocked(1, false);
         st_.say("ALARM OFF. A NEW FILE APPEARED: MAIL.CLUE", 4);
+        media::sfx(media::Sfx::Success);
     }
     if (laptop_.solved(1) && !st_.has("solved:email")) {         // puzzle C: the email
         st_.set("solved:email");
@@ -74,17 +102,34 @@ void Game::react(double dt) {
     if (const std::string m = panelTerm_.takeMessage(); !m.empty()) st_.say(m);
     if (panelTerm_.solved(0) && !st_.has("solved:wiring")) {     // puzzle A: the door's lock
         st_.set("solved:wiring");
+        media::sfx(media::Sfx::Success);
         st_.say("DOOR LOCK POWERED - NOW IT NEEDS THE KEY", 4);
     }
     if (const std::string m = safe_.takeMessage(); !m.empty()) st_.say(m);
     if (safe_.doorOpen() && !st_.has("solved:safe")) {
         st_.set("solved:safe");
+        media::sfx(media::Sfx::SafeOpen);
         st_.addEvidence(Evidence::Key);
         st_.addEvidence(Evidence::Fingerprint);
         st_.say("NEW EVIDENCE: DOOR KEY + FINGERPRINT");
     }
     if (const std::string m = prints_.takeMessage(); !m.empty()) st_.say(m, 4);
-    if (prints_.solved() && !st_.has("solved:print")) st_.set("solved:print");
+    if (prints_.solved() && !st_.has("solved:print")) { st_.set("solved:print"); media::sfx(media::Sfx::Success); }
+
+    // Meme branch: sounds for things happening, and the door's jump scare.
+    if (st_.has("open:drawer") && !st_.has("sfx:drawer")) { st_.set("sfx:drawer"); media::sfx(media::Sfx::Drawer); }
+    if (st_.has("open:door") && !st_.has("sfx:door")) {
+        st_.set("sfx:door");
+        media::sfx(media::Sfx::Door);
+        scareTimer_ = 1.1;                                    // let the creak play, then...
+    }
+    if (scareTimer_ > 0 && (scareTimer_ -= dt) <= 0) memes_.queue({"jumpscare", true, 0, "", false, true, ""});
+    if (st_.evidence.size() > lastEvidence_) media::sfx(media::Sfx::Evidence);
+    lastEvidence_ = st_.evidence.size();
+    if (st_.links.size() > lastLinks_) media::sfx(media::Sfx::Snap);
+    lastLinks_ = st_.links.size();
+    if (st_.screen == Screen::Safe && safe_.number() != lastDial_) media::sfx(media::Sfx::Tick);
+    lastDial_ = safe_.number();
 }
 
 // ------------------------------------------------------------------ input
@@ -107,7 +152,9 @@ void Game::mouseMove(PointF p) {
 }
 
 void Game::mouseDown(PointF p, input::Button b) {
-    if (title_) { title_ = false; return; }
+    if (title_) { title_ = false; media::sfx(media::Sfx::Click); return; }
+    if (memes_.active()) { memes_.skip(); return; }           // a click skips the meme
+    media::sfx(media::Sfx::Click);
     if (p.x < PanelW) {                                       // Case File panel
         if (st_.screen == Screen::Outcome) return;            // the verdict is in
         switch (panel_.click(p, st_)) {
@@ -134,8 +181,16 @@ void Game::mouseDown(PointF p, input::Button b) {
         case Screen::Prints: prints_.mouseDown(q); break;
         case Screen::Deduction:
             if (deduction_.mouseDown(q) == ui::DeductionUI::Action::Accuse) {
-                outcome_.show(judge(st_, deduction_.accusation()));
+                const Verdict v = judge(st_, deduction_.accusation());
+                outcome_.show(v);
                 st_.go(Screen::Outcome);
+                if (v.solved) {                               // case solved: the song, and a "yaah"
+                    memes_.queue({"songmem1", true, 0, "yaah", false, false, ""});
+                } else {
+                    media::sfx(media::Sfx::Wrong);
+                    if (st_.accusations == 1) memes_.queue({"lost1", true, 0, "", false, false, ""});
+                    if (st_.accusations == 1 || v.caseClosed) memes_.queue({"dofido1", true, 0, "", true, false, ""});
+                }
             }
             break;
         case Screen::Outcome: outcomeAction(outcome_.mouseDown(q)); break;
@@ -165,6 +220,10 @@ void Game::scroll(PointF p, double dir) {
 
 void Game::keyDown(input::Key k) {
     if (title_) { if (k == input::Key::Enter || k == input::Key::Space) title_ = false; return; }
+    if (memes_.active()) {                                    // Space / Enter / Esc skip the meme
+        if (k == input::Key::Space || k == input::Key::Enter || k == input::Key::Escape) memes_.skip();
+        return;
+    }
     if (st_.screen == Screen::Outcome) { outcomeAction(outcome_.key(k)); return; }
     if (k == input::Key::Escape) { if (st_.screen != Screen::Explore) st_.go(Screen::Explore); return; }
     switch (st_.screen) {
@@ -178,13 +237,14 @@ void Game::keyDown(input::Key k) {
 }
 
 void Game::character(unsigned cp) {
-    if (title_) return;
+    if (title_ || memes_.active()) return;
+    if (st_.screen == Screen::Computer || st_.screen == Screen::Panel) media::sfx(media::Sfx::Type);
     if (st_.screen == Screen::Computer) laptop_.type(cp);
     if (st_.screen == Screen::Panel) panelTerm_.type(cp);
 }
 
 bool Game::hoverOutline(Polygon& out) const {
-    if (title_ || st_.screen != Screen::Explore || fade_ < 1) return false;
+    if (title_ || memes_.active() || st_.screen != Screen::Explore || fade_ < 1) return false;
     const Hotspot* h = explore_.hovered();
     if (!h) return false;
     out = apply(translate(PanelW, 0), h->area);
@@ -229,6 +289,7 @@ void Game::render(Canvas& c) {
     // The toast slides up when a message arrives and back down before it goes.
     const double shown = std::min({1.0, (st_.toastLength - st_.toastTime) / 0.25, st_.toastTime / 0.25});
     ui::toastBar(view, 0, 470, 800, st_.toast, shown);
+    if (memes_.active()) memes_.render(view);
     c.blit(panel, 0, 0);
     c.blit(view, PanelW, 0);
 

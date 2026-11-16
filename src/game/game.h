@@ -22,6 +22,7 @@
 #include "ui/case_file_ui.h"
 #include "ui/code_editor.h"
 #include "ui/deduction_ui.h"
+#include "memes.h"
 
 namespace game {
 
@@ -43,6 +44,9 @@ public:
     // Polygon to outline under the mouse (canvas coordinates), drawn by OpenGL.
     bool hoverOutline(Polygon& out) const;
     bool drawHoverInCanvas = false;                          // for screenshots without OpenGL
+    // Meme branch: meme clips and sound. Off = the plain game (used by the scripted tests).
+    void setMemes(bool on);
+    MemeLayer& memes() { return memes_; }
 
     const GameState& state() const { return st_; }
     bool onTitle() const { return title_; }
@@ -72,8 +76,14 @@ private:
     ui::CaseFileUI panel_;
     ui::DeductionUI deduction_;
     ui::OutcomeUI outcome_;
+    MemeLayer memes_;
 
     bool title_ = true;
+    bool memesOn_ = true;
+    double scareTimer_ = -1;                                 // door opened -> jump scare after the creak
+    double stampTimer_ = -1;                                 // verdict stamp sound
+    size_t lastEvidence_ = 0, lastLinks_ = 0;
+    int lastDial_ = 0;
     PointF mouse_{0, 0};
     Screen lastScreen_ = Screen::Explore;
     Canvas lastView_{800, 500}, fromView_{800, 500};
