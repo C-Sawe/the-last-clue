@@ -164,6 +164,16 @@ std::vector<float> makeSfx(Sfx kind) {
         case Sfx::Wrong: x.tone(0, 0.18, 150, 140, 0.25, 4, 1); x.tone(0.2, 0.3, 110, 100, 0.25, 4, 1); break;
         case Sfx::Whoosh: x.hiss(0, 0.35, 0.5, 6, 0.02, 0.25); break;
         case Sfx::Stamp: x.tone(0, 0.25, 90, 50, 0.7, 14); x.hiss(0, 0.1, 0.6, 35, 0.4, 0.1); break;
+        case Sfx::Rumble: x.tone(0, 0.7, 42, 38, 0.6, 0.8); x.hiss(0, 0.7, 0.35, 0.5, 0.01, 0.03); break;
+        case Sfx::Scream:                                           // a shriek: detuned saws sliding down + harsh noise
+            x.tone(0, 1.3, 1450, 700, 0.30, 1.4, 2);
+            x.tone(0, 1.3, 1530, 760, 0.25, 1.4, 2);
+            x.tone(0, 1.3, 980, 480, 0.25, 1.6, 1);
+            x.hiss(0, 1.3, 0.55, 1.5, 0.9, 0.4);
+            x.tone(0, 0.5, 70, 40, 0.8, 4);                         // the hit
+            for (size_t i = 0; i < x.s.size(); ++i)                 // tremble: amplitude wobble at 18 Hz
+                x.s[i] *= static_cast<float>(0.75 + 0.25 * std::sin(TAU * 18 * static_cast<double>(i) / RATE));
+            break;
     }
     for (auto& v : x.s) v = std::clamp(v, -1.0f, 1.0f);
     return x.s;

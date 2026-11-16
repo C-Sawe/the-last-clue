@@ -48,7 +48,7 @@ void Game::onEnter(Screen s) {
         }
     }
     if (s != Screen::Outcome) media::sfx(media::Sfx::Whoosh);
-    if (s == Screen::Outcome) stampTimer_ = 0.75;             // the stamp lands ~0.75 s into the verdict
+    if (s == Screen::Outcome) stampTimer_ = 0.85;             // the stamp lands ~0.85 s into the verdict
 }
 
 // ------------------------------------------------------------------ update
@@ -58,7 +58,10 @@ void Game::update(double dt) {
     panel_.update(dt, st_);
     if (title_) return;
     if (memes_.active()) { memes_.update(dt); return; }      // a meme is playing: the game waits
-    if (stampTimer_ > 0 && st_.screen == Screen::Outcome && (stampTimer_ -= dt) <= 0) media::sfx(media::Sfx::Stamp);
+    if (stampTimer_ > 0 && st_.screen == Screen::Outcome && (stampTimer_ -= dt) <= 0) {
+        media::sfx(media::Sfx::Stamp);
+        if (outcome_.verdict().solved) media::playSound("yaah");   // "yaah!" as CASE SOLVED lands
+    }
 
     switch (st_.screen) {
         case Screen::Explore: explore_.update(dt, st_); break;
@@ -123,7 +126,7 @@ void Game::react(double dt) {
         media::sfx(media::Sfx::Door);
         scareTimer_ = 1.1;                                    // let the creak play, then...
     }
-    if (scareTimer_ > 0 && (scareTimer_ -= dt) <= 0) memes_.queue({"jumpscare", true, 0, "", false, true, ""});
+    if (scareTimer_ > 0 && (scareTimer_ -= dt) <= 0) memes_.queue({"@scare", false, 2.4, "", false, true, ""});   // drawn in code
     if (st_.evidence.size() > lastEvidence_) media::sfx(media::Sfx::Evidence);
     lastEvidence_ = st_.evidence.size();
     if (st_.links.size() > lastLinks_) media::sfx(media::Sfx::Snap);
@@ -184,8 +187,8 @@ void Game::mouseDown(PointF p, input::Button b) {
                 const Verdict v = judge(st_, deduction_.accusation());
                 outcome_.show(v);
                 st_.go(Screen::Outcome);
-                if (v.solved) {                               // case solved: the song, and a "yaah"
-                    memes_.queue({"songmem1", true, 0, "yaah", false, false, ""});
+                if (v.solved) {                               // case solved: the song (the "yaah" comes with the stamp)
+                    memes_.queue({"songmem1", true, 0, "", false, false, ""});
                 } else {
                     media::sfx(media::Sfx::Wrong);
                     if (st_.accusations == 1) memes_.queue({"lost1", true, 0, "", false, false, ""});

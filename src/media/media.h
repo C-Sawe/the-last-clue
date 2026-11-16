@@ -59,7 +59,7 @@ void playSound(const std::string& name);              // assets/memes/<name>.mp3
 void playFile(const std::string& path);
 void stopAll();                                        // stops files (videos, songs), not effects
 
-enum class Sfx { Click, Tick, Snap, Drawer, Door, SafeOpen, Evidence, Success, Wrong, Type, Whoosh, Stamp };
+enum class Sfx { Click, Tick, Snap, Drawer, Door, SafeOpen, Evidence, Success, Wrong, Type, Whoosh, Stamp, Rumble, Scream };
 void sfx(Sfx s);                                       // short effect, synthesised in code
 
 }  // namespace media

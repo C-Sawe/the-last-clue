@@ -7,6 +7,7 @@
 //   - Picture: fades in, holds, fades out over the game (alpha blending).
 //   - Video:   the game behind it darkens; the clip is scaled to the view by
 //              inverse mapping; optional shake at the start (jump scare).
+//   - Scare:   clip "@scare" is a jump scare drawn entirely in code.
 //   - Wasted:  after a moment the whole frame turns grey and a big WASTED with a
 //              caption drops in, GTA style.
 #include <deque>
@@ -47,6 +48,10 @@ private:
     std::shared_ptr<media::Video> video_;
     void start();
     double length() const;
+    // the door's jump scare, drawn in code (clip name "@scare")
+    static constexpr double ScareHit = 0.65;
+    bool screamed_ = false;
+    void renderScare(Canvas& v);
 };
 
 }  // namespace game
