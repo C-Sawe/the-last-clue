@@ -105,6 +105,7 @@ struct Player {
 int main() {
     Player p;
     p.g.drawHoverInCanvas = true;                       // the window draws this outline with OpenGL
+    p.g.setMemes(std::getenv("LASTCLUE_MEMES") != nullptr);   // the plain game unless asked for the memes
     // LASTCLUE_VIDEO=out.mp4 also records every frame (30 fps) through ffmpeg - used for the demo video.
     if (const char* out = std::getenv("LASTCLUE_VIDEO")) {
         const std::string cmd = "ffmpeg -loglevel error -y -f rawvideo -pix_fmt rgb24 -s 1050x540 -r 30 -i - "
@@ -200,18 +201,10 @@ int main() {
     p.wait(0.4);
     p.click(p.view({90, 460}), 1.0);                    // RUN the starter wiring: wrong socket
     p.snap();
-    p.click(p.view(line(8)), 0.2);                      // green: 255 75 -> 255 225
+    p.click(p.view(line(9)), 0.2);                      // green: 255 75 -> 255 225
     p.key(input::Key::End);
     for (int i = 0; i < 2; ++i) p.key(input::Key::Backspace);
     p.type("225");
-    p.click(p.view(line(10)), 0.2);                     // blue: round the edge
-    p.key(input::Key::End);
-    for (int i = 0; i < 7; ++i) p.key(input::Key::Backspace);
-    p.type("15 225");
-    for (const char* l : {"line 15 225 15 25", "line 15 25 255 25", "line 255 25 255 75"}) {
-        p.key(input::Key::Enter);
-        p.type(l);
-    }
     p.click(p.view({90, 460}), 1.4);                    // RUN -> door lock powered
     p.snap();
     p.key(input::Key::Escape, 0.6);

@@ -123,14 +123,17 @@ CodePuzzle wiringPuzzle() {
         "# terminal (left) -> socket of\n"
         "# the SAME colour (right).\n"
         "# wires must not cross!\n"
+        "# one wire is in the wrong socket\n"
         "color red\n"
         "line 45 75 255 150\n"
         "color green\n"
         "line 45 150 255 75\n"
         "color blue\n"
-        "line 45 225 255 225\n";
-    p.hint = "HINT: A WIRE CAN BE SEVERAL LINES. TAKE THE BLUE ONE ROUND THE EDGE: "
-             "LINE 45 225 15 225, LINE 15 225 15 25, LINE 15 25 255 25, LINE 255 25 255 75.";
+        "line 45 225 15 225\n"
+        "line 15 225 15 25\n"
+        "line 15 25 255 25\n"
+        "line 255 25 255 75\n";
+    p.hint = "HINT: THE GREEN SOCKET IS AT THE BOTTOM: CHANGE THE GREEN LINE TO END AT 255 225.";
     p.options.start = {150, 150};
     p.options.stepLimit = 5000;
     p.check = checkWiring;

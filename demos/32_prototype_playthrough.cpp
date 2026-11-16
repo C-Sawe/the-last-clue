@@ -63,6 +63,7 @@ struct Player {
 int main() {
     Player p;
     p.g.drawHoverInCanvas = true;                       // the window draws this outline with OpenGL
+    p.g.setMemes(false);
     p.wait(1.0);
     p.snap();                                           // 1. title
     p.click({525, 300}, 0.5);
