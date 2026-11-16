@@ -19,6 +19,19 @@ list(FILTER ENGINE_SOURCES EXCLUDE REGEX ".*/src/platform/.*")
 add_library(lastclue STATIC ${ENGINE_SOURCES})
 target_include_directories(lastclue PUBLIC ${CMAKE_SOURCE_DIR}/src)
 
+# Meme branch: images (stb_image) and sound (miniaudio), both single-header
+# libraries in third_party/. Their implementation file is compiled without our
+# warning flags, since it is not our code.
+target_include_directories(lastclue PRIVATE ${CMAKE_SOURCE_DIR}/third_party)
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/media/third_party_impl.cpp PROPERTIES COMPILE_OPTIONS "-w")
+find_package(Threads REQUIRED)
+target_link_libraries(lastclue PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
+if(APPLE)
+    target_link_libraries(lastclue PUBLIC "-framework CoreFoundation" "-framework CoreAudio" "-framework AudioToolbox")
+elseif(UNIX)
+    target_link_libraries(lastclue PUBLIC m)
+endif()
+
 # Every demos/<name>.cpp becomes an executable called <name> (writes images to output/).
 file(GLOB DEMO_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/demos/*.cpp)
 foreach(demo ${DEMO_SOURCES})
