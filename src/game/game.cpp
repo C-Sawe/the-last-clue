@@ -188,11 +188,11 @@ void Game::mouseDown(PointF p, input::Button b) {
                 outcome_.show(v);
                 st_.go(Screen::Outcome);
                 if (v.solved) {                               // case solved: the song (the "yaah" comes with the stamp)
-                    memes_.queue({"songmem1", true, 0, "", false, false, ""});
+                    memes_.queue({"songmem1", true, 0, "", false, false, "", true});
                 } else {
                     media::sfx(media::Sfx::Wrong);
-                    if (st_.accusations == 1) memes_.queue({"lost1", true, 0, "", false, false, ""});
-                    if (st_.accusations == 1 || v.caseClosed) memes_.queue({"dofido1", true, 0, "", true, false, ""});
+                    if (st_.accusations == 1) memes_.queue({"lost1", true, 0, "", false, false, "", true});
+                    if (st_.accusations == 1 || v.caseClosed) memes_.queue({"dofido1", true, 0, "", true, false, "", true});
                 }
             }
             break;

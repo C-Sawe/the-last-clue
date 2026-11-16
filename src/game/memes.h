@@ -27,6 +27,7 @@ struct MemeClip {
     bool wasted = false;
     bool shake = false;          // jump scare: shake + flash at the start
     std::string caption;         // small text under the picture
+    bool crop = false;           // cut away the clip's black bars and fill the screen
 };
 
 class MemeLayer {
@@ -52,6 +53,7 @@ private:
     static constexpr double ScareHit = 0.65;
     bool screamed_ = false;
     void renderScare(Canvas& v);
+    void renderCropped(Canvas& v, const Canvas& frame);
 };
 
 }  // namespace game

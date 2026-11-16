@@ -112,7 +112,9 @@ void MemeLayer::render(Canvas& v) {
         sx = std::sin(t_ * 70) * 14 * (0.8 - t_);
         sy = std::cos(t_ * 55) * 10 * (0.8 - t_);
     }
-    if (video_) {
+    if (video_ && c.crop) {
+        renderCropped(v, video_->frameAt(t_));
+    } else if (video_) {
         const Canvas& f = video_->frameAt(t_);
         const double grow = c.shake ? 1.0 + 0.25 * std::max(0.0, 0.4 - t_) : 1.0;   // the scare lunges at you
         const double h = 500 * grow, w = 800 * grow;
@@ -141,6 +143,71 @@ void MemeLayer::render(Canvas& v) {
         }
     }
     drawText(v, 800 - textWidth("CLICK TO SKIP") - 12, 486, "CLICK TO SKIP", Color{150, 150, 160});
+}
+
+// ===================== cropped clips (victory and lost scenes) =====================
+// Many clips are a small picture inside black bars. Each frame we find the
+// picture's bounding box (rows / columns that are not near-black), cut it out,
+// and scale it to fill the view's height. The space left at the sides is filled
+// with the same picture enlarged, blurred and darkened (instead of the game or
+// black), so nothing of the original background shows.
+void MemeLayer::renderCropped(Canvas& v, const Canvas& f) {
+    auto lit = [&](int x, int y) { const Color c = f.getPixel(x, y); return c.r + c.g + c.b > 75; };
+    // The picture is the LONGEST run of lit rows (small gaps allowed), so watermark
+    // text sitting in a black bar is not mistaken for part of the picture.
+    auto longestRun = [](const std::vector<bool>& on, int& from, int& to) {
+        int bestLen = 0, start = -1, gap = 0;
+        for (int i = 0; i <= static_cast<int>(on.size()); ++i) {
+            const bool o = i < static_cast<int>(on.size()) && on[static_cast<size_t>(i)];
+            if (o) { if (start < 0) start = i; gap = 0; }
+            else if (start >= 0 && ++gap > 6) {
+                const int end = i - gap;
+                if (end - start + 1 > bestLen) { bestLen = end - start + 1; from = start; to = end; }
+                start = -1; gap = 0;
+            }
+            if (i == static_cast<int>(on.size()) && start >= 0) {
+                const int end = i - 1 - gap;
+                if (end - start + 1 > bestLen) { bestLen = end - start + 1; from = start; to = end; }
+            }
+        }
+    };
+    int top = 0, bottom = f.height() - 1, left = 0, right = f.width() - 1;
+    std::vector<bool> rows(static_cast<size_t>(f.height()));
+    for (int y = 0; y < f.height(); ++y) {
+        int n = 0;
+        for (int x = 0; x < f.width(); x += 4) n += lit(x, y);
+        rows[static_cast<size_t>(y)] = n > f.width() / 4 / 5;          // over 20% of the row lit
+    }
+    longestRun(rows, top, bottom);
+    std::vector<bool> cols(static_cast<size_t>(f.width()));
+    for (int x = 0; x < f.width(); ++x) {
+        int n = 0;
+        for (int y = top; y <= bottom; y += 4) n += lit(x, y);
+        cols[static_cast<size_t>(x)] = n > (bottom - top) / 4 / 5;
+    }
+    longestRun(cols, left, right);
+    if (bottom - top < 40 || right - left < 40) { top = 0; bottom = f.height() - 1; left = 0; right = f.width() - 1; }
+
+    Canvas pic(right - left + 1, bottom - top + 1);
+    for (int y = top; y <= bottom; ++y)
+        for (int x = left; x <= right; ++x) pic.setPixel(x - left, y - top, f.getPixel(x, y));
+
+    // Backdrop: the picture shrunk to 40 x 25 and stretched back up = a cheap blur.
+    Canvas small(40, 25);
+    media::drawCover(small, pic, 0, 0, 40, 25, 0.0);
+    for (int y = 0; y < v.height(); ++y)
+        for (int x = 0; x < v.width(); ++x) {
+            // bilinear sample of the tiny picture
+            const double gx = (x + 0.5) / 20.0 - 0.5, gy = (y + 0.5) / 20.0 - 0.5;
+            const int x0 = std::clamp(static_cast<int>(std::floor(gx)), 0, 39), y0 = std::clamp(static_cast<int>(std::floor(gy)), 0, 24);
+            const int x1 = std::min(x0 + 1, 39), y1 = std::min(y0 + 1, 24);
+            const double fx = std::clamp(gx - x0, 0.0, 1.0), fy = std::clamp(gy - y0, 0.0, 1.0);
+            const Color a = anim::lerp(small.getPixel(x0, y0), small.getPixel(x1, y0), fx);
+            const Color b = anim::lerp(small.getPixel(x0, y1), small.getPixel(x1, y1), fx);
+            v.setPixel(x, y, darken(grey(anim::lerp(a, b, fy), 0.3), 0.45));
+        }
+    // The picture itself, as large as the view allows, with the faded look.
+    media::drawFit(v, pic, 0, 0, 800, 500, 0.35, 1.0);
 }
 
 // ======================= the jump scare, drawn in code =======================

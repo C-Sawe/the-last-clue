@@ -17,7 +17,10 @@ submitted game; this branch adds the following.
 | Case solved | **songmem1**, then **yaah!** the moment the CASE SOLVED stamp lands |
 | Everywhere | Sound effects made in code: clicks, typing, dial ticks, drawer, door creak, safe, evidence chime, success, wrong buzz, whoosh on screen changes, the verdict stamp |
 
-All memes are drawn **faded** (washed out, desaturated). **Click, Space, Enter or
+All memes are drawn **faded** (washed out, desaturated). The victory and lost
+clips have their black bars cut away every frame (the picture is found as the
+longest run of lit rows and columns), fill the screen's height, and the sides
+show a blurred copy of the clip instead of a background. **Click, Space, Enter or
 Esc skips a meme.**
 
 ## Run it (macOS)
