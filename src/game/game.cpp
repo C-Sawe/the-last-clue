@@ -126,7 +126,7 @@ void Game::react(double dt) {
         media::sfx(media::Sfx::Door);
         scareTimer_ = 1.1;                                    // let the creak play, then...
     }
-    if (scareTimer_ > 0 && (scareTimer_ -= dt) <= 0) memes_.queue({"@scare", false, 2.4, "", false, true, ""});   // drawn in code
+    if (scareTimer_ > 0 && (scareTimer_ -= dt) <= 0) memes_.queue({"@scare", false, 4.6, "", false, true, ""});   // drawn in code
     if (st_.evidence.size() > lastEvidence_) media::sfx(media::Sfx::Evidence);
     lastEvidence_ = st_.evidence.size();
     if (st_.links.size() > lastLinks_) media::sfx(media::Sfx::Snap);

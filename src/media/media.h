@@ -56,6 +56,7 @@ std::shared_ptr<Video> video(const std::string& name);   // cached; nullptr if m
 
 // ---- sound --------------------------------------------------------------------------
 void playSound(const std::string& name);              // assets/memes/<name>.mp3, if present
+bool soundExists(const std::string& name);
 void playFile(const std::string& path);
 void stopAll();                                        // stops files (videos, songs), not effects
 

@@ -294,6 +294,10 @@ void playFile(const std::string& path) {
     g_audio.playing.push_back(p);
 }
 
+bool soundExists(const std::string& name) {
+    return !g_dir.empty() && (fileExists(g_dir + "/" + name + ".mp3") || fileExists(g_dir + "/" + name + ".wav"));
+}
+
 void playSound(const std::string& name) {
     if (g_dir.empty()) return;
     for (const char* ext : {".mp3", ".wav"})

@@ -10,7 +10,7 @@ submitted game; this branch adds the following.
 | Torn letter | Stays on screen 4 s longer (about 6 s) before going back to the study; click the drawer again to re-read it |
 | Safe | Click it again any time to look inside; the open safe holds the **GTA 6** case next to the key |
 | Security panel | Simpler: the blue wire is already routed, only the green line's end (`255 75` → `255 225`) is wrong |
-| Door opens | Creak, the lights flicker, then a **jump scare drawn in code**: a face built from our own primitives lunges at the camera (scaled 0.35× → 1.6× in 0.12 s), with a red flash, shake, glitch slices, static and a synthesised scream |
+| Door opens | Creak, the lights flicker, then a **jump scare drawn in code**: a face built from our own primitives lunges at the camera (scaled 0.35× → 1.6× in 0.12 s), with a red flash, shake, glitch slices, static and the recorded scream (`scare.mp3`; a scream synthesised in code if the file is missing) |
 | Deduction (first time) | **mem4** ("let me think") fades in for 3.5 s |
 | First wrong accusation | **lost1**, then **dofido1** with a GTA-style **WASTED – you let the murderer run away** |
 | Case failed (3rd wrong) | **dofido1** + WASTED again |

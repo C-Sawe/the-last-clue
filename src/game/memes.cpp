@@ -68,13 +68,22 @@ void MemeLayer::update(double dt) {
     if (clips_.empty()) return;
     if (!started_) start();
     t_ += dt;
-    if (clips_.front().name == "@scare" && !screamed_ && t_ >= ScareHit) { screamed_ = true; media::sfx(media::Sfx::Scream); }
+    // The scream: the recorded one (assets/memes/scare.mp3) starts 0.38 s early so its loud
+    // onset lands with the lunge; without the file, the scream synthesised in code.
+    if (clips_.front().name == "@scare" && !screamed_) {
+        const bool recorded = media::soundExists("scare");
+        if (t_ >= ScareHit - (recorded ? 0.38 : 0.0)) {
+            screamed_ = true;
+            if (recorded) media::playSound("scare");
+            else media::sfx(media::Sfx::Scream);
+        }
+    }
     if (t_ >= length()) skip();
 }
 
 void MemeLayer::skip() {
     if (clips_.empty()) return;
-    if (clips_.front().video) media::stopAll();
+    if (clips_.front().video || clips_.front().name == "@scare") media::stopAll();
     clips_.pop_front();
     started_ = false;
     video_.reset();
