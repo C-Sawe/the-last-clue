@@ -1,6 +1,8 @@
 // The playable crime scene — Alvin (CP3, issue #44)
 #include "explore.h"
 
+#include "media/media.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -36,6 +38,8 @@ ExploreScreen::ExploreScreen() {
         {"door", makeRect(640, 120, 92, 212), "DOOR"},
         {"clock", makeRegularPolygon({470, 100}, 32, 16), "CLOCK"},
         {"painting", makeRect(300, 60, 100, 80), "PAINTING"},
+        {"painting2", makeRect(518, 26, 96, 74), "PAINTING"},
+        {"painting3", makeRect(650, 20, 80, 68), "PAINTING"},
         {"safe", makeRect(35, 235, 115, 110), "SAFE"},
         {"papers", papers, "PAPERS"},
         {"drawer", makeRect(400, 262, 108, 38), "DESK DRAWER"},
@@ -58,6 +62,8 @@ double ExploreScreen::standX(const std::string& id) const {
     if (id == "safe") return 175;
     if (id == "drawer") return 455;
     if (id == "painting") return 350;
+    if (id == "painting2") return 560;
+    if (id == "painting3") return 690;
     if (id == "laptop") return 575;
     if (id == "door") return 690;
     if (id == "panel") return 760;
@@ -99,14 +105,15 @@ void ExploreScreen::arrive(GameState& st) {
     const std::string id = pending_;
     pending_.clear();
     if (id == "drawer") {
-        if (st.has("solved:letter")) { st.say("ONLY DUST LEFT IN THE DRAWER"); return; }
+        if (st.has("solved:letter")) { st.go(Screen::Letter); return; }          // read the letter again
         if (!st.has("open:drawer")) { st.set("open:drawer"); st.say("THE DRAWER SLIDES OPEN... TORN PAPER INSIDE"); openingDrawer_ = true; }
         else st.go(Screen::Letter);
     } else if (id == "safe") {
-        if (st.has("solved:safe")) st.say("THE SAFE IS EMPTY NOW");
-        else st.go(Screen::Safe);
+        st.go(Screen::Safe);                                                     // open or not, look inside
     } else if (id == "painting") {
         st.go(Screen::Painting);
+    } else if (id == "painting2" || id == "painting3") {
+        st.say(id == "painting2" ? "A FINE PORTRAIT. NOTHING BEHIND IT." : "WHO PAINTS THIS? NOT A CLUE, JUST ART.");
     } else if (id == "laptop") {
         st.go(Screen::Computer);
     } else if (id == "door") {
@@ -178,10 +185,14 @@ void PaintingView::render(Canvas& c) const {
     // The painting, drawn once on its own canvas, then swung about the nail
     Canvas art(380, 290);
     art.clear(Color{190, 150, 60});
-    scanlineFill(art, makeRect(14, 14, 352, 262), Color{120, 160, 190});
-    scanlineFill(art, Polygon{{{14, 276}, {130, 120}, {230, 276}}}, Color{80, 100, 80});
-    scanlineFill(art, Polygon{{{170, 276}, {280, 140}, {366, 276}}}, Color{60, 85, 65});
-    fillCircle(art, {300, 70}, 24, Palette::Yellow);
+    if (const Canvas* meme = media::image("mem1")) {               // meme branch: the faded meme
+        media::drawCover(art, *meme, 14, 14, 352, 262, 0.45);
+    } else {
+        scanlineFill(art, makeRect(14, 14, 352, 262), Color{120, 160, 190});
+        scanlineFill(art, Polygon{{{14, 276}, {130, 120}, {230, 276}}}, Color{80, 100, 80});
+        scanlineFill(art, Polygon{{{170, 276}, {280, 140}, {366, 276}}}, Color{60, 85, 65});
+        fillCircle(art, {300, 70}, 24, Palette::Yellow);
+    }
     drawPolygonOutline(art, makeRect(0, 0, 380, 290), Palette::Black);
 
     const PointF nail{210, 95}, artPos{210, 95};                    // top-left corner hangs on the nail

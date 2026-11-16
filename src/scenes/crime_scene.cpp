@@ -8,6 +8,7 @@
 #include "../polygon/polygon.h"
 #include "../primitives/primitives.h"
 #include "../transform/transform2d.h"
+#include "../media/media.h"
 #include "scene_anim.h"
 #include "scenes.h"
 
@@ -63,10 +64,28 @@ void window(Canvas& c) {
 
 void painting(Canvas& c) {
     rect(c, 300, 60, 100, 80, Color{190, 150, 60}, Palette::Black);
+    if (const Canvas* meme = media::image("mem1")) {               // meme branch: a faded meme in the frame
+        media::drawCover(c, *meme, 308, 68, 84, 64, 0.45);
+        return;
+    }
     fillOnly(c, 308, 68, 84, 64, Color{120, 160, 190});
     scanlineFill(c, Polygon{{{308, 132}, {340, 92}, {365, 132}}}, Color{80, 100, 80});
     scanlineFill(c, Polygon{{{345, 132}, {372, 100}, {392, 132}}}, Color{60, 85, 65});
     fillCircle(c, {378, 82}, 6, Palette::Yellow);
+}
+
+// Meme branch: two more paintings that are just for decoration.
+void extraPaintings(Canvas& c) {
+    struct Frame { double x, y, w, h; const char* meme; Color wood; };
+    const Frame frames[] = {{518, 26, 96, 74, "mem3", Color{150, 105, 55}}, {650, 20, 80, 68, "mem2", Color{110, 75, 45}}};
+    for (const auto& f : frames) {
+        rect(c, f.x, f.y, f.w, f.h, f.wood, Palette::Black);
+        if (const Canvas* meme = media::image(f.meme)) media::drawCover(c, *meme, f.x + 7, f.y + 7, f.w - 14, f.h - 14, 0.45);
+        else fillOnly(c, f.x + 7, f.y + 7, f.w - 14, f.h - 14, Color{90, 110, 130});
+        fillCircle(c, {static_cast<int>(f.x + f.w / 2), static_cast<int>(f.y) - 6}, 2, Color{180, 180, 190});   // the nail
+        drawLineBresenham(c, {static_cast<int>(f.x + 8), static_cast<int>(f.y)}, {static_cast<int>(f.x + f.w / 2), static_cast<int>(f.y) - 6}, Color{40, 30, 20});
+        drawLineBresenham(c, {static_cast<int>(f.x + f.w - 8), static_cast<int>(f.y)}, {static_cast<int>(f.x + f.w / 2), static_cast<int>(f.y) - 6}, Color{40, 30, 20});
+    }
 }
 
 void clock(Canvas& c) {
@@ -240,6 +259,7 @@ void renderCrimeSceneState(Canvas& c, const SceneState& st) {
     floor(c);
     window(c);
     painting(c);
+    extraPaintings(c);
     clock(c);
     door(c, st.door);
     backRoom(c, st.door, st.vialTaken);

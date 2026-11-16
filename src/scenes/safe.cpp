@@ -12,6 +12,7 @@
 #include "../transform/transform2d.h"
 #include "puzzle_anim.h"
 #include "scenes.h"
+#include "../media/media.h"
 
 namespace {
 Point px(PointF p) { return {static_cast<int>(std::lround(p.x)), static_cast<int>(std::lround(p.y))}; }
@@ -116,6 +117,14 @@ void renderSafeOpening(Canvas& c, double dialAngle, double doorOpen) {
     const Point fp = px({dx + dw * 0.5 + 55, dy + dh * 0.62 + 45});
     for (int k = 0; k < 6; ++k) drawEllipseMidpoint(c, fp, 5 + k * 5, 8 + k * 6, Color{60, 60, 90});
     drawText(c, static_cast<int>(dx + dw) - textWidth("CODE ACCEPTED", 2) - 20, static_cast<int>(dy) + 20, "CODE ACCEPTED", Color{120, 230, 140}, 2);
+    // Meme branch: a game case standing on the shelf, beside the key.
+    if (const Canvas* game = media::image("gta6")) {
+        const double gw = dw * 0.26, gh = gw * game->height() / game->width();
+        const double gx = dx + dw * 0.66, gy = dy + dh * 0.55 - 2 - gh;
+        scanlineFill(c, makeRect(gx + 4, gy + 4, gw, gh), Color{14, 14, 18});      // shadow
+        media::drawCover(c, *game, gx, gy, gw, gh, 0.35);
+        drawPolygonOutline(c, makeRect(gx, gy, gw, gh), Color{10, 10, 12});
+    }
 
     // ---- the door, swung about its hinge ----
     const PointF hinge{dx, dy + dh / 2};
